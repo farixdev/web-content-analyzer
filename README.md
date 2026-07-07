@@ -71,6 +71,27 @@ pip install -r requirements.txt
 main-content extraction. Without it, the tool falls back to a BeautifulSoup
 heuristic that still works on most content pages.
 
+## Set your API keys once (.env)
+
+So you never re-type keys, put them in a `.env` file in the project folder and the
+app loads them automatically on every launch:
+
+1. Copy `.env.example` to `.env` (a starter `.env` is already included).
+2. Paste your keys after the `=` (no quotes needed) and save:
+
+   ```
+   SERPER_API_KEY=your_serper_key
+   GROQ_API_KEY=your_groq_key
+   ```
+
+3. Restart the app. The **SERP API key** and **Groq API key** fields pre-fill from
+   `.env`, and the CLI picks them up too.
+
+`.env` is git-ignored, so your keys stay on your machine and are never committed.
+Real system environment variables (if you set any) still take priority over
+`.env`. You can also leave `.env` empty and just paste keys into the app each
+session as before - both work.
+
 ## Step 2 - Run the desktop app
 
 ```
