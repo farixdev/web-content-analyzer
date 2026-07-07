@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 import analyzer
 import search
 import brief_doc
+import config
 
 
 # ----------------------------------------------------------------------------
