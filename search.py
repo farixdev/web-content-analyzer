@@ -724,6 +724,8 @@ def _cli():
         ap.error("a search query is required (or pass --list-countries)")
 
     import os
+    import config
+    config.load_env()  # pull GROQ_API_KEY / SERPER_API_KEY from a .env file, if present
     groq_key = args.key or os.environ.get("GROQ_API_KEY", "")
     entities = [e.strip() for e in args.entities.split(",") if e.strip()]
     result = search_and_analyze(

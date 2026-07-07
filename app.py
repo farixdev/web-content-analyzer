@@ -746,6 +746,7 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    config.load_env()  # pull GROQ_API_KEY / SERPER_API_KEY from a .env file, if present
     app = QApplication(sys.argv)
     app.setApplicationName("Web Content Analyzer")
     win = MainWindow()
