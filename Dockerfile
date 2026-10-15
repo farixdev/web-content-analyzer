@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PORT=7860
+ENV PORT=10000
 
 WORKDIR /app
 
-# Create non-root user for cloud security & Hugging Face Spaces compatibility
+# Create non-root user for cloud security
 RUN useradd -m -u 1000 user
 
 # Install Python web dependencies
@@ -18,6 +18,6 @@ COPY --chown=user:user . /app
 
 USER user
 
-EXPOSE 7860
+EXPOSE 10000
 
 CMD ["python", "web_server.py"]

@@ -234,9 +234,21 @@ class WebAppHandler(BaseHTTPRequestHandler):
             if os.path.isfile(asset_path):
                 with open(asset_path, "rb") as f:
                     content = f.read()
-                mime = "application/javascript" if filename.endswith(".js") else "text/plain"
+                ext = os.path.splitext(filename)[1].lower()
+                mime_map = {
+                    ".js": "application/javascript",
+                    ".css": "text/css",
+                    ".png": "image/png",
+                    ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg",
+                    ".svg": "image/svg+xml",
+                    ".ico": "image/x-icon",
+                    ".webp": "image/webp",
+                }
+                mime = mime_map.get(ext, "application/octet-stream")
                 self.send_response(200)
                 self.send_header("Content-Type", mime)
+                self.send_header("Cache-Control", "public, max-age=86400")
                 self.send_header("Content-Length", str(len(content)))
                 self.end_headers()
                 self.wfile.write(content)
