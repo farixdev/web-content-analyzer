@@ -84,6 +84,26 @@
       display: block;
     }
 
+    .nav-manual-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      transition: all 0.15s ease;
+    }
+
+    .nav-manual-link:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+    }
+
     .nav-status {
       display: flex;
       align-items: center;
@@ -725,9 +745,15 @@
     <a href="/" class="brand" aria-label="Mindcob">
       <img src="/assets/logo.png" alt="Mindcob" class="brand-logo">
     </a>
-    <div class="nav-status">
-      <span class="status-dot" id="globalStatusDot"></span>
-      <span id="globalStatusText">Ready &bull; 100% Free Engine Active</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="/manual.pdf" target="_blank" class="nav-manual-link" title="Open Official User Manual (PDF)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        <span>User Manual (PDF)</span>
+      </a>
+      <div class="nav-status">
+        <span class="status-dot" id="globalStatusDot"></span>
+        <span id="globalStatusText">Ready &bull; 100% Free Engine Active</span>
+      </div>
     </div>
   </header>
 

@@ -379,6 +379,22 @@ class WebAppHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Chart image could not be generated.")
             return
 
+        # 10. Documentation: Official PDF User Manual
+        if path == "/api/export/manual" or path == "/manual.pdf":
+            manual_path = os.path.join(os.path.dirname(__file__), "Mindcob_Web_Content_Analyzer_User_Manual.pdf")
+            if os.path.isfile(manual_path):
+                with open(manual_path, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Disposition", 'inline; filename="Mindcob_Web_Content_Analyzer_User_Manual.pdf"')
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            self.send_error(404, "User Manual PDF not found")
+            return
+
         self.send_error(404, "Page not found")
 
     def do_POST(self):
