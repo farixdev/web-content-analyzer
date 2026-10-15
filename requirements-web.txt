@@ -1,0 +1,7 @@
+# Web Content Analyzer - Lightweight Cloud & Web Deployment Requirements
+# Note: PySide6 is excluded because it is only needed for the local desktop GUI (app.py)
+requests>=2.31
+beautifulsoup4>=4.12
+trafilatura>=1.8
+python-docx>=1.1
+matplotlib>=3.7

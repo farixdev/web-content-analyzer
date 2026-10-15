@@ -30,8 +30,10 @@ from urllib.parse import urlparse, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-DEFAULT_MODEL = "openai/gpt-oss-20b"   # current Groq general model; refreshable at runtime
-GROQ_BASE = "https://api.groq.com/openai/v1"
+import llm  # provider-agnostic LLM client (Groq / OpenRouter / Anthropic / Gemini)
+
+DEFAULT_MODEL = llm.DEFAULT_MODELS["groq"]    # default Groq model; UI overrides per provider
+GROQ_BASE = "https://api.groq.com/openai/v1"  # kept for reference; calls route through llm.py
 
 # ----------------------------------------------------------------------------
 # Word lists (ported from the reference analysis script)
@@ -451,46 +453,23 @@ def _parse_json_blob(s):
 
 
 def groq_list_models(api_key, timeout=20):
-    """Return a sorted list of live Groq model ids. Empty list on failure."""
-    r = requests.get(
-        GROQ_BASE + "/models",
-        headers={"Authorization": "Bearer %s" % api_key},
-        timeout=timeout,
-    )
-    r.raise_for_status()
-    data = r.json().get("data", [])
-    return sorted(m.get("id", "") for m in data if m.get("id"))
+    """Return a sorted list of live model ids for the key's provider (Groq,
+    OpenRouter, Anthropic or Gemini). Raises on network / auth failure so the
+    UI can surface the reason."""
+    return llm.list_models(api_key, timeout=timeout)
 
 
 def groq_json(api_key, model, system, user, timeout=90, max_tokens=1600, temperature=0.4):
-    """Generic Groq chat call that expects a single JSON object back. Returns the
-    parsed dict (or {"raw_response": ...} if the model did not emit clean JSON)."""
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "temperature": temperature,
-        "max_completion_tokens": max_tokens,
-    }
-    r = requests.post(
-        GROQ_BASE + "/chat/completions",
-        headers={"Authorization": "Bearer %s" % api_key, "Content-Type": "application/json"},
-        json=payload,
-        timeout=timeout,
-    )
-    if r.status_code >= 400:
-        try:
-            msg = r.json().get("error", {}).get("message", r.text)
-        except Exception:
-            msg = r.text
-        raise RuntimeError("Groq API %d: %s" % (r.status_code, msg))
-    return _parse_json_blob(r.json()["choices"][0]["message"]["content"])
+    """Generic chat call that expects a single JSON object back. The provider is
+    auto-detected from the key prefix. Returns the parsed dict (or
+    {"raw_response": ...} if the model did not emit clean JSON)."""
+    return llm.chat_json(api_key, model, system, user, timeout=timeout,
+                         max_tokens=max_tokens, temperature=temperature)
 
 
 def groq_insights(api_key, model, page_title, main_text, primary_keyword, timeout=90):
-    """Ask a Groq model for a structured semantic analysis. Returns a dict."""
+    """Ask the model for a structured semantic SEO analysis. Returns a dict.
+    Works with any supported provider (Groq / OpenRouter / Anthropic / Gemini)."""
     text = main_text[:12000]  # cap tokens
     system = ("You are an expert SEO and content strategist. Analyze the page and reply "
               "with a single valid JSON object only. No prose, no markdown, no code fences.")
@@ -509,31 +488,8 @@ def groq_insights(api_key, model, page_title, main_text, primary_keyword, timeou
         "  eeat_signals (short string on Experience/Expertise/Authoritativeness/Trust present or missing)\n\n"
         "Content:\n\"\"\"%s\"\"\""
     ) % (page_title or "(none)", primary_keyword or "(infer it)", text)
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "temperature": 0.2,
-        "max_completion_tokens": 1600,
-    }
-    r = requests.post(
-        GROQ_BASE + "/chat/completions",
-        headers={"Authorization": "Bearer %s" % api_key, "Content-Type": "application/json"},
-        json=payload,
-        timeout=timeout,
-    )
-    if r.status_code >= 400:
-        # Surface Groq's own error message (e.g. model deprecated / bad key).
-        try:
-            msg = r.json().get("error", {}).get("message", r.text)
-        except Exception:
-            msg = r.text
-        raise RuntimeError("Groq API %d: %s" % (r.status_code, msg))
-    content = r.json()["choices"][0]["message"]["content"]
-    return _parse_json_blob(content)
+    return llm.chat_json(api_key, model, system, user, timeout=timeout,
+                         temperature=0.2, max_tokens=1600)
 
 
 # ----------------------------------------------------------------------------

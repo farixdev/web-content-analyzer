@@ -14,6 +14,7 @@ Supported .env syntax:
 """
 
 import os
+import sys
 
 
 def _parse_env_file(path):
@@ -47,6 +48,11 @@ def load_env(override=False):
     """
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [os.path.join(here, ".env"), os.path.join(os.getcwd(), ".env")]
+    # When frozen into a standalone .exe (PyInstaller), __file__ points inside
+    # the bundle, so also look next to the executable itself — that's where a
+    # recipient would drop a .env to persist their keys.
+    if getattr(sys, "frozen", False):
+        candidates.insert(0, os.path.join(os.path.dirname(sys.executable), ".env"))
     loaded, seen = {}, set()
     for path in candidates:
         ap = os.path.abspath(path)

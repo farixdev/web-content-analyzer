@@ -10,18 +10,32 @@ Two modes in one app:
    an optional proxy), parses the ranked results, and can deep-analyze the top
    pages with the same engine used in mode 1.
 
-Runs as a PySide6 desktop app or a command-line tool from the same engine.
+Runs as a modern **Web Dashboard** (`web_server.py`), a PySide6 desktop GUI (`app.py`), or a command-line tool from the same engine.
 
-Four files do the work:
+## Free Cloud Deployment (Render.com)
 
-- `analyzer.py` - the page engine (fetch, extract, metrics, entities, SEO, Groq,
-  reports, CLI).
-- `search.py` - the Google-search engine (country targeting, proxy, SERP parsing,
-  competitor aggregate, reports, CLI). Reuses `analyzer.py` for per-page deep-dives.
-- `brief_doc.py` - turns a competitor brief into a writer-ready outline `.docx`
-  (page-type detection, Groq-generated headings, real density tables).
-- `app.py` - the PySide6 GUI. Imports all three. A **Mode** dropdown at the top
-  switches between "Analyze a single URL" and "Search Google by country".
+Deploy this app on the web for 100% free with automated HTTPS:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+1. Connect your repository on [render.com](https://render.com)
+2. Choose **Web Service** (Free Plan)
+3. Set **Build Command**: `pip install -r requirements-web.txt`
+4. Set **Start Command**: `python web_server.py`
+5. Click **Create Web Service** — Render automatically builds and hosts your live web dashboard!
+
+Architecture and Core Modules:
+
+- `web_server.py` - standalone lightweight web application server with REST API and browser UI.
+- `analyzer.py` - the page engine (fetch, extract, metrics, entities, SEO, LLM insights, CLI).
+- `search.py` - the Google search & deep competitor engine (country targeting, proxy, SERP parsing, clean site filtering, multi-site orchestration).
+- `suggestions.py` - Google live Autocomplete / search suggestion scraper.
+- `crawler.py` - deep multi-page BFS website crawler (crawls 20 to 40+ pages per competitor domain).
+- `keyword_matrix.py` - per-website Top 20 keywords ranking and cross-competitor keyword dominance comparison matrix.
+- `dashboard_renderer.py` - renders self-contained interactive visual charts & graphs (Chart.js) embedded into the desktop app.
+- `docx_generator.py` - compiles publication-grade Word `.docx` intelligence reports with embedded charts.
+- `brief_doc.py` - generates writer-ready outline `.docx` from research.
+- `app.py` - the PySide6 desktop GUI with embedded `QWebEngineView` interactive charts.
 
 ## What it measures (no AI needed)
 
@@ -94,8 +108,11 @@ session as before - both work.
 
 ## Step 2 - Run the desktop app
 
+Double-click `run.bat` or run from terminal:
+
 ```
-python app.py
+run.bat
+# or: py app.py
 ```
 
 1. Paste a URL.

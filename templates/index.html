@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Competitor Intelligence & Keyword Dominance Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="/assets/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-body: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-surface-alt: #F1F5F9;
+      --bg-hover: #F8FAFC;
+      --border-color: #E2E8F0;
+      --border-focus: #2563EB;
+      --text-main: #0F172A;
+      --text-body: #334155;
+      --text-muted: #64748B;
+      --text-dim: #94A3B8;
+      --primary: #2563EB;
+      --primary-hover: #1D4ED8;
+      --primary-dark: #1E3A8A;
+      --primary-light: #EFF6FF;
+      --primary-ring: rgba(37, 99, 235, 0.18);
+      --emerald: #059669;
+      --emerald-bg: #ECFDF5;
+      --amber: #D97706;
+      --amber-bg: #FFFBEB;
+      --rose: #DC2626;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-body);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation Bar */
+    .navbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary-light);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary-hover);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+    }
+
+    .status-dot.active {
+      background: var(--amber);
+      animation: pulse 1.4s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+    }
+
+    /* Main Content Container */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 24px 80px 24px;
+      width: 100%;
+    }
+
+    /* Hero Form Card */
+    .hero-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .hero-header {
+      margin-bottom: 24px;
+    }
+
+    .hero-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .hero-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr 220px 200px;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 860px) {
+      .search-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .input-control {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      color: var(--text-main);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+
+    .input-control:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-ring);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      height: 48px;
+      align-self: flex-end;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 8px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Customization Settings Bar */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .chip-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .chip-btn {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      color: var(--text-body);
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip-btn:hover {
+      background: #E2E8F0;
+      color: var(--text-main);
+    }
+
+    .chip-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+
+    .settings-accordion-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0;
+    }
+
+    .settings-accordion-btn:hover {
+      text-decoration: underline;
+    }
+
+    .settings-drawer {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .settings-drawer.open {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .settings-drawer.open {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Live Progress Card */
+    .progress-card {
+      display: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .progress-card.active {
+      display: block;
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .progress-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-pct {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .progress-bar-bg {
+      background: #E2E8F0;
+      border-radius: var(--radius-full);
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .progress-bar-fill {
+      background: var(--primary);
+      height: 100%;
+      width: 0%;
+      border-radius: var(--radius-full);
+      transition: width 0.3s ease;
+    }
+
+    .terminal-box {
+      background: #0F172A;
+      border: 1px solid #1E293B;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #94A3B8;
+      height: 140px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    .terminal-box div {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .terminal-box .term-highlight { color: #38BDF8; font-weight: 500; }
+    .terminal-box .term-success { color: #34D399; font-weight: 500; }
+    .terminal-box .term-warning { color: #FBBF24; }
+
+    /* Results View */
+    .results-section {
+      display: none;
+    }
+
+    .results-section.active {
+      display: block;
+    }
+
+    /* Actions Bar */
+    .actions-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-docx {
+      background: #1E3A8A;
+      color: #FFFFFF;
+      padding: 9px 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
+    }
+
+    .btn-docx:hover {
+      background: #172554;
+      transform: translateY(-1px);
+    }
+
+    .btn-action {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-action:hover {
+      background: var(--bg-surface-alt);
+      border-color: #CBD5E1;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Tabs Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 6px;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 18px;
+      cursor: pointer;
+      position: relative;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--primary);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--primary);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .panel-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    /* Chart Containers */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      margin-bottom: 16px;
+    }
+
+    /* Tables */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-surface-alt);
+      color: var(--text-main);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-body);
+    }
+
+    tr:hover td {
+      background: var(--bg-hover);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-blue {
+      background: var(--primary-light);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      color: var(--primary);
+    }
+
+    .badge-emerald {
+      background: var(--emerald-bg);
+      border: 1px solid rgba(5, 150, 105, 0.2);
+      color: var(--emerald);
+    }
+
+    .badge-slate {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      color: var(--text-body);
+    }
+
+    .overlap-bar {
+      width: 90px;
+      height: 7px;
+      background: #E2E8F0;
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+
+    .overlap-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: var(--radius-full);
+    }
+
+    /* Domain Selector Pills */
+    .domain-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .domain-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .domain-pill:hover {
+      background: var(--bg-surface-alt);
+    }
+
+    .domain-pill.active {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+      font-weight: 600;
+    }
+
+    /* Suggestions Grid */
+    .suggestions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .suggestion-chip {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-body);
+      padding: 8px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .suggestion-chip:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border-color);
+      padding: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <a href="/" class="brand">
+      <div class="brand-icon">W</div>
+      <div>
+        <span class="brand-title">Mindcob Intelligence</span>
+        <span class="brand-subtitle">Competitor Content & Keyword Dominance Engine</span>
+      </div>
+    </a>
+    <div class="nav-status">
+      <span class="status-dot" id="globalStatusDot"></span>
+      <span id="globalStatusText">Ready &bull; 100% Free Engine Active</span>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Hero Search Card -->
+    <section class="hero-card">
+      <div class="hero-header">
+        <h1 class="hero-title">Competitor Intelligence & Keyword Dominance</h1>
+        <p class="hero-desc">Discover what competitors rank for, crawl 20–40 internal pages per site, analyze shared keyword dominance, and download formatted Word (.docx) reports with embedded charts.</p>
+      </div>
+
+      <form id="searchForm" onsubmit="startAnalysis(event)">
+        <div class="search-row">
+          <div class="input-group">
+            <label class="input-label" for="queryInput">Search Query / Primary Keyword</label>
+            <input type="text" id="queryInput" class="input-control" placeholder="e.g. pos system montreal, business voip, john doe" required autofocus>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="countrySelect">Target Country</label>
+            <select id="countrySelect" class="input-control">
+              <option value="United States" selected>United States (us)</option>
+              <option value="United Kingdom">United Kingdom (uk)</option>
+              <option value="Canada">Canada (ca)</option>
+              <option value="Canada (French)">Canada (fr)</option>
+              <option value="Australia">Australia (au)</option>
+              <option value="Ireland">Ireland (ie)</option>
+              <option value="New Zealand">New Zealand (nz)</option>
+              <option value="Germany">Germany (de)</option>
+              <option value="France">France (fr)</option>
+              <option value="Spain">Spain (es)</option>
+              <option value="Italy">Italy (it)</option>
+              <option value="Pakistan">Pakistan (pk)</option>
+              <option value="India">India (in)</option>
+            </select>
+          </div>
+
+          <button type="submit" id="startBtn" class="btn-primary">
+            <span>🚀 Run Deep Analysis</span>
+          </button>
+        </div>
+
+        <!-- Customization Controls Grid -->
+        <div class="controls-grid">
+          <div class="input-group">
+            <span class="input-label">Competitor Sites:</span>
+            <div class="chip-group" id="competitorsChips">
+              <button type="button" class="chip-btn" data-val="3">3 Sites</button>
+              <button type="button" class="chip-btn active" data-val="5">5 Sites (Rec)</button>
+              <button type="button" class="chip-btn" data-val="8">8 Sites</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">Pages / Competitor:</span>
+            <div class="chip-group" id="pagesChips">
+              <button type="button" class="chip-btn" data-val="15">15 Pages</button>
+              <button type="button" class="chip-btn active" data-val="25">25 Pages (Rec)</button>
+              <button type="button" class="chip-btn" data-val="40">40 Pages</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">Keyword Type (N-Gram):</span>
+            <div class="chip-group" id="ngramChips">
+              <button type="button" class="chip-btn active" data-val="all">All Keywords</button>
+              <button type="button" class="chip-btn" data-val="phrases">Phrases (2-3 words)</button>
+              <button type="button" class="chip-btn" data-val="single">Single Words</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">Crawler Concurrency Speed:</span>
+            <div class="chip-group" id="speedChips">
+              <button type="button" class="chip-btn active" data-val="8">Fast (8 Workers)</button>
+              <button type="button" class="chip-btn" data-val="5">Standard (5)</button>
+              <button type="button" class="chip-btn" data-val="2">Polite (2)</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="settings-accordion-btn" onclick="toggleSettingsDrawer()">
+          <span>⚙️ Advanced Filters & Custom Stopwords</span>
+        </button>
+
+        <!-- Collapsible Advanced Drawer -->
+        <div class="settings-drawer" id="settingsDrawer">
+          <div class="input-group">
+            <label class="input-label" for="customStopwordsInput">
+              Custom Stopwords to Exclude
+              <span style="color:var(--text-muted); text-transform:none; font-weight:normal;">(comma-separated)</span>
+            </label>
+            <input type="text" id="customStopwordsInput" class="input-control" placeholder="e.g. copyright, contact, login, privacy, terms">
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="serperKeyInput">
+              SERP API Key (Serper)
+              <span style="color:var(--text-muted); text-transform:none; font-weight:normal;">(Optional - leave blank for 100% free search)</span>
+            </label>
+            <input type="text" id="serperKeyInput" class="input-control" placeholder="Optional. If blank, free web search is used.">
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Live Crawl Progress Card -->
+    <section class="progress-card" id="progressCard">
+      <div class="progress-header">
+        <div class="progress-title">
+          <span class="status-dot active"></span>
+          <span id="progressStepTitle">Initializing competitor crawl pipeline...</span>
+        </div>
+        <div class="progress-pct" id="progressPctText">0%</div>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+      </div>
+      <div class="terminal-box" id="terminalLog">
+        <div>[System] Ready. Waiting for search prompt...</div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <main class="results-section" id="resultsSection">
+
+      <!-- Action Bar -->
+      <div class="actions-bar">
+        <div>
+          <h2 id="resultsHeaderTitle" style="font-size:18px; font-weight:700; color:var(--text-main);">Results Overview</h2>
+          <span id="resultsHeaderSub" style="font-size:12.5px; color:var(--text-muted);">Competitor corpus breakdown</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <!-- Word Doc Download Button -->
+          <a href="/api/export/docx" download="competitor_intelligence_report.docx" class="btn-docx">
+            <span>📄 Download in Word (.docx)</span>
+          </a>
+          <a href="/api/export/chart" download="keyword_dominance_chart.png" class="btn-action">
+            <span>📊 Download Chart PNG</span>
+          </a>
+          <a href="/api/export/csv" download="competitor_keywords.csv" class="btn-action">
+            <span>📑 Export CSV</span>
+          </a>
+          <a href="/api/export/html" download="dashboard.html" class="btn-action">
+            <span>💾 Save HTML</span>
+          </a>
+          <a href="/api/export/md" download="report.md" class="btn-action">
+            <span>📝 Markdown</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-label">Competitors Analyzed</span>
+          <span class="kpi-value" id="kpiCompetitors">0</span>
+          <span class="kpi-sub" id="kpiCompetitorsSub">Business domains</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">Internal Pages Scraped</span>
+          <span class="kpi-value" id="kpiPages">0</span>
+          <span class="kpi-sub" id="kpiWords">0 total words</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">Dominant Keywords</span>
+          <span class="kpi-value" id="kpiKeywords">0</span>
+          <span class="kpi-sub">Cross-competitor terms</span>
+        </div>
+
+        <div class="kpi-card">
+          <span class="kpi-label">Search Engine Mode</span>
+          <span class="kpi-value" id="kpiEngine" style="font-size:18px; color:var(--primary);">Free Engine</span>
+          <span class="kpi-sub" id="kpiEngineSub">Zero API keys required</span>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <nav class="tab-nav">
+        <button type="button" class="tab-btn active" onclick="switchTab('dominanceTab', this)">🏆 Keyword Dominance Matrix</button>
+        <button type="button" class="tab-btn" onclick="switchTab('competitorTab', this)">🏢 Competitor Deep Dive</button>
+        <button type="button" class="tab-btn" onclick="switchTab('suggestionsTab', this)">💡 Google Suggestions</button>
+        <button type="button" class="tab-btn" onclick="switchTab('serpTab', this)">🔍 Organic SERP Results</button>
+      </nav>
+
+      <!-- Tab 1: Keyword Dominance Matrix -->
+      <div class="tab-pane active" id="dominanceTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Cross-Competitor Keyword Dominance Chart</h3>
+              <p class="panel-desc">Highest frequency keywords shared across multiple competitor websites</p>
+            </div>
+            <a href="/api/export/chart" download="keyword_dominance_chart.png" class="btn-action" style="font-size:11.5px;">
+              <span>📊 Download Chart as Image</span>
+            </a>
+          </div>
+          <div class="chart-container">
+            <canvas id="dominanceChart"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Keyword Dominance Matrix Table</h3>
+              <p class="panel-desc">Keyword ranking with competitor presence and occurrences per website</p>
+            </div>
+            <input type="text" id="matrixSearchInput" class="input-control" placeholder="Search keywords..." style="max-width:240px; padding:6px 12px; font-size:12px;" onkeyup="filterMatrixTable()">
+          </div>
+
+          <div class="table-responsive">
+            <table id="matrixTable">
+              <thead>
+                <tr>
+                  <th style="width:50px;">Rank</th>
+                  <th>Keyword / Phrase</th>
+                  <th>Competitor Overlap</th>
+                  <th>Total Frequency</th>
+                  <th>Per-Domain Breakdown</th>
+                </tr>
+              </thead>
+              <tbody id="matrixTableBody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Competitor Deep Dive -->
+      <div class="tab-pane" id="competitorTab">
+        <div class="domain-selector" id="domainPillsContainer">
+          <!-- Injected via JS -->
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title" id="competitorChartTitle">Competitor Top Keywords</h3>
+              <p class="panel-desc" id="competitorChartDesc">Word occurrences across scraped pages</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="competitorChart"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Top 20 Keyword Frequency</h3>
+              <p class="panel-desc">Exact occurrences and corpus density percentage</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:50px;">#</th>
+                  <th>Keyword</th>
+                  <th>Occurrences</th>
+                  <th>Density %</th>
+                </tr>
+              </thead>
+              <tbody id="competitorKeywordTableBody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Crawled Internal Pages Directory</h3>
+              <p class="panel-desc">All pages scraped for this competitor domain</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Page Title & URL</th>
+                  <th>Word Count</th>
+                  <th>Link</th>
+                </tr>
+              </thead>
+              <tbody id="crawledPagesTableBody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Google Suggestions -->
+      <div class="tab-pane" id="suggestionsTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Google Autocomplete Search Suggestions</h3>
+              <p class="panel-desc">Real-time search queries scraped from Google for this keyword. Click any to analyze.</p>
+            </div>
+          </div>
+          <div class="suggestions-grid" id="suggestionsContainer">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Organic SERP Results -->
+      <div class="tab-pane" id="serpTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Organic SERP Ranking & Filters</h3>
+              <p class="panel-desc">Top organic search results, including filtered ads and forum links</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:50px;">Pos</th>
+                  <th>Title & URL</th>
+                  <th>Domain</th>
+                  <th>Snippet</th>
+                  <th>Classification</th>
+                </tr>
+              </thead>
+              <tbody id="serpTableBody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <footer>
+    Mindcob Web Content Analyzer &bull; 100% Free Search Support &bull; Downloadable Word (.docx) Reports &bull; Corporate Blue & White Theme
+  </footer>
+
+  <script>
+    // Global State
+    let currentResults = null;
+    let selectedCompetitorIdx = 0;
+    let dominanceChartInstance = null;
+    let competitorChartInstance = null;
+    let pollInterval = null;
+
+    // Chip Handlers
+    function setupChipGroup(containerId) {
+      document.querySelectorAll(`#${containerId} .chip-btn`).forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll(`#${containerId} .chip-btn`).forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+    }
+
+    setupChipGroup('competitorsChips');
+    setupChipGroup('pagesChips');
+    setupChipGroup('ngramChips');
+    setupChipGroup('speedChips');
+
+    function toggleSettingsDrawer() {
+      const drawer = document.getElementById('settingsDrawer');
+      drawer.classList.toggle('open');
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // Start Analysis
+    async function startAnalysis(e) {
+      e.preventDefault();
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
+
+      const country = document.getElementById('countrySelect').value;
+      const serperKey = document.getElementById('serperKeyInput').value.trim();
+      const customStopwords = document.getElementById('customStopwordsInput').value.trim();
+
+      const maxCompetitors = parseInt(document.querySelector('#competitorsChips .chip-btn.active').dataset.val, 10);
+      const pagesPerSite = parseInt(document.querySelector('#pagesChips .chip-btn.active').dataset.val, 10);
+      const ngramFilter = document.querySelector('#ngramChips .chip-btn.active').dataset.val;
+      const maxWorkers = parseInt(document.querySelector('#speedChips .chip-btn.active').dataset.val, 10);
+
+      // UI state transition
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('progressCard').classList.add('active');
+      document.getElementById('resultsSection').classList.remove('active');
+      document.getElementById('globalStatusDot').className = 'status-dot active';
+      document.getElementById('globalStatusText').textContent = 'Analyzing Competitors...';
+
+      const terminal = document.getElementById('terminalLog');
+      terminal.innerHTML = `<div>[System] Starting analysis for "${escapeHtml(query)}" in ${country}...</div>`;
+
+      try {
+        const resp = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: query,
+            country: country,
+            num_results: 15,
+            pages_per_site: pagesPerSite,
+            max_competitors: maxCompetitors,
+            serper_key: serperKey,
+            custom_stopwords: customStopwords,
+            ngram_filter: ngramFilter,
+            max_workers: maxWorkers,
+          })
+        });
+
+        if (!resp.ok) {
+          throw new Error('Failed to start analysis: HTTP ' + resp.status);
+        }
+
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(pollProgress, 1200);
+
+      } catch (err) {
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('globalStatusDot').className = 'status-dot';
+        document.getElementById('globalStatusText').textContent = 'Error';
+        alert('Could not start analysis: ' + err.message);
+      }
+    }
+
+    // Poll Progress
+    async function pollProgress() {
+      try {
+        const res = await fetch('/api/progress');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const pct = Math.max(0, Math.min(data.progress || 0, 100));
+        document.getElementById('progressBarFill').style.width = pct + '%';
+        document.getElementById('progressPctText').textContent = pct + '%';
+        document.getElementById('progressStepTitle').textContent = data.step || 'Processing...';
+
+        const terminal = document.getElementById('terminalLog');
+        if (data.logs && data.logs.length > 0) {
+          terminal.innerHTML = data.logs.map(l => {
+            let cls = '';
+            if (l.includes('Deep-crawling') || l.includes('Dominance') || l.includes('Word Document')) cls = 'term-highlight';
+            else if (l.includes('Found') || l.includes('Retrieved') || l.includes('Completed') || l.includes('ready')) cls = 'term-success';
+            else if (l.includes('Blocked') || l.includes('Switching') || l.includes('Error')) cls = 'term-warning';
+            return `<div class="${cls}">${escapeHtml(l)}</div>`;
+          }).join('');
+          terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        if (data.status === 'complete') {
+          clearInterval(pollInterval);
+          document.getElementById('startBtn').disabled = false;
+          document.getElementById('progressCard').classList.remove('active');
+          document.getElementById('globalStatusDot').className = 'status-dot';
+          document.getElementById('globalStatusText').textContent = 'Analysis Complete';
+          fetchAndRenderResults();
+        } else if (data.status === 'error') {
+          clearInterval(pollInterval);
+          document.getElementById('startBtn').disabled = false;
+          document.getElementById('globalStatusDot').className = 'status-dot';
+          document.getElementById('globalStatusText').textContent = 'Error';
+          alert('Crawl error: ' + (data.error || 'Unknown error occurred.'));
+        }
+      } catch (e) {
+        console.error('Poll error:', e);
+      }
+    }
+
+    // Fetch Full Results
+    async function fetchAndRenderResults() {
+      try {
+        const res = await fetch('/api/results');
+        if (!res.ok) throw new Error('Could not fetch results');
+        const data = await res.json();
+        currentResults = data;
+        renderDashboard(data);
+      } catch (err) {
+        console.log('Error loading results:', err);
+      }
+    }
+
+    // Render Full Results Dashboard
+    function renderDashboard(data) {
+      if (!data || !data.query) return;
+
+      document.getElementById('resultsSection').classList.add('active');
+      document.getElementById('resultsHeaderTitle').textContent = `Competitor Intelligence: "${data.query}"`;
+      document.getElementById('resultsHeaderSub').textContent = `Target Country: ${data.country} &bull; Searched: ${data.searched_at || 'Just now'}`;
+
+      const competitors = data.competitors_data || [];
+      const matrix = data.matrix || {};
+      const suggestions = data.suggestions || [];
+      const serp = data.serp_results || [];
+
+      // KPIs
+      document.getElementById('kpiCompetitors').textContent = competitors.length;
+      document.getElementById('kpiCompetitorsSub').textContent = competitors.map(c => c.domain).slice(0, 3).join(', ') + (competitors.length > 3 ? '...' : '');
+
+      const totalPages = competitors.reduce((acc, c) => acc + (c.pages_scraped || 0), 0);
+      const totalWords = competitors.reduce((acc, c) => acc + (c.total_words || 0), 0);
+      document.getElementById('kpiPages').textContent = totalPages;
+      document.getElementById('kpiWords').textContent = totalWords.toLocaleString() + ' total words parsed';
+
+      const crossTerms = matrix.cross_site_terms || matrix.cross_site_keywords || [];
+      document.getElementById('kpiKeywords').textContent = crossTerms.length;
+
+      const engineName = data.engine === 'serper' ? 'Google Serper API' : 'Free Search Engine';
+      document.getElementById('kpiEngine').textContent = engineName;
+      document.getElementById('kpiEngineSub').textContent = data.engine === 'serper' ? 'API Key Active' : 'Zero Keys Required (100% Free)';
+
+      // 1. Dominance View
+      renderDominanceView(crossTerms, competitors.length);
+
+      // 2. Competitor View
+      renderCompetitorView(competitors);
+
+      // 3. Suggestions View
+      renderSuggestionsView(suggestions);
+
+      // 4. SERP View
+      renderSerpView(serp);
+    }
+
+    function renderDominanceView(terms, totalDomains) {
+      const top15 = terms.slice(0, 15);
+      const labels = top15.map(t => t.keyword);
+      const counts = top15.map(t => t.total_occurrences || t.total_count || 0);
+
+      const ctx = document.getElementById('dominanceChart').getContext('2d');
+      if (dominanceChartInstance) dominanceChartInstance.destroy();
+
+      // Clean Corporate Blue Chart
+      dominanceChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Total Cross-Competitor Occurrences',
+            data: counts,
+            backgroundColor: '#2563EB',
+            borderColor: '#1D4ED8',
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0F172A',
+              titleColor: '#FFFFFF',
+              bodyColor: '#E2E8F0',
+              padding: 10,
+              displayColors: false,
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: '#E2E8F0' },
+              ticks: { color: '#64748B', font: { family: 'Inter', size: 11 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#0F172A', font: { family: 'Inter', weight: '600', size: 12 } }
+            }
+          }
+        }
+      });
+
+      // Dominance Table
+      const tbody = document.getElementById('matrixTableBody');
+      tbody.innerHTML = terms.map((t, idx) => {
+        const presence = t.domain_presence || t.used_by_count || 0;
+        const total = t.total_occurrences || t.total_count || 0;
+        const overlapPct = totalDomains > 0 ? Math.round((presence / totalDomains) * 100) : 0;
+        const breakdownBadges = Object.entries(t.per_domain || t.breakdown || {}).map(([dom, count]) => {
+          return count > 0 ? `<span class="badge badge-slate" style="margin-right:4px; margin-bottom:4px;">${escapeHtml(dom)}: <b>${count}</b></span>` : '';
+        }).join('');
+
+        return `
+          <tr>
+            <td><span class="badge badge-blue">#${idx + 1}</span></td>
+            <td><strong style="color:#0F172A; font-size:13.5px;">${escapeHtml(t.keyword)}</strong></td>
+            <td>
+              <span style="font-weight:600;">${presence} / ${totalDomains} sites (${overlapPct}%)</span>
+              <div class="overlap-bar">
+                <div class="overlap-fill" style="width:${overlapPct}%"></div>
+              </div>
+            </td>
+            <td><span class="badge badge-blue" style="font-size:12px; font-weight:700;">${total.toLocaleString()}</span></td>
+            <td>${breakdownBadges}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterMatrixTable() {
+      const q = document.getElementById('matrixSearchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#matrixTableBody tr');
+      rows.forEach(r => {
+        const text = r.children[1].textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    function renderCompetitorView(competitors) {
+      const pillsContainer = document.getElementById('domainPillsContainer');
+      if (!competitors || competitors.length === 0) {
+        pillsContainer.innerHTML = '<div style="color:var(--text-muted);">No competitors analyzed yet.</div>';
+        return;
+      }
+
+      pillsContainer.innerHTML = competitors.map((c, i) => {
+        const activeClass = i === selectedCompetitorIdx ? 'active' : '';
+        return `
+          <button type="button" class="domain-pill ${activeClass}" onclick="selectCompetitor(${i})">
+            🌐 ${escapeHtml(c.domain)} (${c.pages_scraped || 0} pages)
+          </button>
+        `;
+      }).join('');
+
+      showCompetitorDetails(competitors[selectedCompetitorIdx]);
+    }
+
+    function selectCompetitor(idx) {
+      selectedCompetitorIdx = idx;
+      document.querySelectorAll('#domainPillsContainer .domain-pill').forEach((p, i) => {
+        p.classList.toggle('active', i === idx);
+      });
+      showCompetitorDetails(currentResults.competitors_data[idx]);
+    }
+
+    function showCompetitorDetails(c) {
+      if (!c) return;
+
+      document.getElementById('competitorChartTitle').textContent = `${c.domain} - Top 20 Keywords`;
+      document.getElementById('competitorChartDesc').textContent = `Total pages scraped: ${c.pages_scraped || 0} | Total words: ${(c.total_words || 0).toLocaleString()}`;
+
+      const topKeywords = (c.top_keywords || []).slice(0, 20);
+      const labels = topKeywords.map(k => k.keyword);
+      const counts = topKeywords.map(k => k.count);
+
+      const ctx = document.getElementById('competitorChart').getContext('2d');
+      if (competitorChartInstance) competitorChartInstance.destroy();
+
+      competitorChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Word Occurrences',
+            data: counts,
+            backgroundColor: '#1E3A8A',
+            borderColor: '#172554',
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              grid: { color: '#E2E8F0' },
+              ticks: { color: '#64748B' }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#0F172A', font: { weight: '600' } }
+            }
+          }
+        }
+      });
+
+      // Keywords Table
+      const kwTable = document.getElementById('competitorKeywordTableBody');
+      kwTable.innerHTML = topKeywords.map((k, i) => `
+        <tr>
+          <td><span class="badge badge-slate">#${i + 1}</span></td>
+          <td><strong>${escapeHtml(k.keyword)}</strong></td>
+          <td><span class="badge badge-blue">${k.count.toLocaleString()}</span></td>
+          <td>${k.density_pct}%</td>
+        </tr>
+      `).join('');
+
+      // Pages Table
+      const pagesTable = document.getElementById('crawledPagesTableBody');
+      const pages = c.pages || [];
+      pagesTable.innerHTML = pages.map(p => `
+        <tr>
+          <td><span class="badge badge-emerald">200 OK</span></td>
+          <td style="max-width:400px; word-break:break-all;">
+            <div style="font-weight:600; color:#0F172A;">${escapeHtml(p.title || 'Page')}</div>
+            <div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(p.url)}</div>
+          </td>
+          <td><span class="badge badge-slate">${(p.word_count || 0).toLocaleString()} words</span></td>
+          <td><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--primary); text-decoration:none; font-weight:600;">Visit &rarr;</a></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderSuggestionsView(suggs) {
+      const container = document.getElementById('suggestionsContainer');
+      if (!suggs || suggs.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted);">No suggestions retrieved.</div>';
+        return;
+      }
+      container.innerHTML = suggs.map(s => `
+        <div class="suggestion-chip" onclick="reAnalyzeSuggestion('${escapeHtml(s)}')">
+          <span>🔍</span>
+          <span>${escapeHtml(s)}</span>
+        </div>
+      `).join('');
+    }
+
+    function reAnalyzeSuggestion(sugg) {
+      document.getElementById('queryInput').value = sugg;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderSerpView(serp) {
+      const tbody = document.getElementById('serpTableBody');
+      tbody.innerHTML = serp.map(r => {
+        const isComp = r.is_competitor !== false;
+        const badge = isComp ? 
+          '<span class="badge badge-emerald">Competitor Analyzed</span>' : 
+          '<span class="badge badge-slate">Skipped (Forum/Ad)</span>';
+
+        return `
+          <tr>
+            <td><span class="badge badge-blue">#${r.position}</span></td>
+            <td>
+              <div style="font-weight:600; color:#0F172A;">${escapeHtml(r.title)}</div>
+              <div style="font-size:11.5px; color:var(--text-muted); word-break:break-all;">${escapeHtml(r.url)}</div>
+            </td>
+            <td><strong>${escapeHtml(r.domain)}</strong></td>
+            <td style="font-size:12px; color:var(--text-muted); max-width:280px;">${escapeHtml(r.snippet)}</td>
+            <td>${badge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Startup Restore
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const savedKey = localStorage.getItem('serper_api_key');
+        if (savedKey) document.getElementById('serperKeyInput').value = savedKey;
+      } catch (e) {}
+
+      document.getElementById('serperKeyInput').addEventListener('change', e => {
+        try { localStorage.setItem('serper_api_key', e.target.value.trim()); } catch (err) {}
+      });
+
+      try {
+        const res = await fetch('/api/progress');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'running') {
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('progressCard').classList.add('active');
+            document.getElementById('globalStatusDot').className = 'status-dot active';
+            document.getElementById('globalStatusText').textContent = 'Analyzing Competitors...';
+            pollInterval = setInterval(pollProgress, 1200);
+          } else if (data.status === 'complete') {
+            fetchAndRenderResults();
+          }
+        }
+      } catch (err) {}
+    });
+  </script>
+</body>
+</html>

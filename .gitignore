@@ -14,6 +14,9 @@ env/
 *.md.bak
 content-report.*
 search-report.*
+report.csv
+report.md
+dashboard.html
 
 # Local secrets / env
 .env

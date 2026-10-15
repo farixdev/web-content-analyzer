@@ -23,6 +23,7 @@ reporting) stays the same.
 import re
 import sys
 import json
+import base64
 import argparse
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs, quote_plus, urljoin
@@ -31,6 +32,10 @@ import requests
 from bs4 import BeautifulSoup
 
 import analyzer  # reuse fetch/extract/metrics/SEO/AI and to_json
+import suggestions
+import crawler
+import keyword_matrix
+import dashboard_renderer
 
 
 # ----------------------------------------------------------------------------
@@ -106,9 +111,10 @@ SERPER_URL = "https://google.serper.dev/search"
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
-# Hosts that appear in organic-looking anchors but are not real results.
+# Hosts that appear in organic-looking anchors but are not real results, or are ads.
 _SKIP_HOST_SUBSTR = ("google.", "gstatic.", "googleusercontent.", "youtube.com/redirect",
-                     "webcache.googleusercontent")
+                     "webcache.googleusercontent", "googleadservices.", "doubleclick.",
+                     "/aclk?", "/pagead/")
 
 
 def country_names():
@@ -132,12 +138,19 @@ JUNK_HOST_SUBSTR = (
     "tripadvisor.", "glassdoor.", "indeed.", "trustpilot.", "g2.com",
     "capterra.", "getapp.", "softwareadvice.", "clutch.co", "yellowpages.",
     "bbb.org", "crunchbase.", "producthunt.", "news.", "wikihow.",
+    "stackexchange.", "stackoverflow.", "github.", "gitlab.", "gov.", "edu.",
 )
 
 
 def _is_competitor(url):
-    """True if the URL looks like a genuine competitor page (not social/junk)."""
+    """True if the URL looks like a genuine competitor page (not social/junk/ads)."""
+    if not url or not url.startswith(("http://", "https://")):
+        return False
     host = urlparse(url).netloc.lower()
+    if any(s in host for s in _SKIP_HOST_SUBSTR):
+        return False
+    if "/aclk?" in url or "googleadservices" in url:
+        return False
     return not any(j in host for j in JUNK_HOST_SUBSTR)
 
 
@@ -343,6 +356,177 @@ def serper_search(query, country=DEFAULT_COUNTRY, num=10, api_key="", timeout=30
     return results
 
 
+def _decode_bing_url(u):
+    """Decode Bing click redirects to obtain direct clean competitor URLs."""
+    if "/ck/a?!" in u and "&u=" in u:
+        try:
+            raw = u.split("&u=")[1].split("&")[0]
+            if raw.startswith("a1"):
+                raw = raw[2:]
+            padded = raw + "=" * ((4 - len(raw) % 4) % 4)
+            decoded = base64.urlsafe_b64decode(padded.encode()).decode("utf-8", errors="ignore")
+            if decoded.startswith(("http://", "https://")):
+                return decoded
+        except Exception:
+            pass
+    return u
+
+
+def bing_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=15):
+    """Query Bing web search (free, zero keys, zero CAPTCHAs, reliable depth)."""
+    query = (query or "").strip()
+    if not query:
+        raise ValueError("Empty search query.")
+    loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
+    results = []
+    seen = set()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": loc["accept"],
+    }
+    proxies = analyzer._proxies(proxy)
+    for first in (1, 11, 21, 31):
+        if len(results) >= num:
+            break
+        url = "https://www.bing.com/search?q=%s&first=%d" % (quote_plus(query), first)
+        try:
+            r = requests.get(url, headers=headers, timeout=timeout, proxies=proxies)
+            if r.status_code != 200:
+                break
+            soup = BeautifulSoup(r.text, "html.parser")
+            items = soup.select("li.b_algo")
+            if not items:
+                break
+            for item in items:
+                h2 = item.select_one("h2 a")
+                if not h2:
+                    continue
+                raw_url = h2.get("href", "").strip()
+                clean_url = _decode_bing_url(raw_url)
+                if not clean_url.startswith(("http://", "https://")):
+                    continue
+                key = clean_url.split("#")[0].rstrip("/")
+                if key in seen:
+                    continue
+                seen.add(key)
+                snip_el = item.select_one(".b_caption p") or item.select_one("p")
+                snip = snip_el.get_text(strip=True) if snip_el else ""
+                results.append({
+                    "position": len(results) + 1,
+                    "title": h2.get_text(strip=True),
+                    "url": clean_url,
+                    "domain": _registrable(urlparse(clean_url).netloc),
+                    "snippet": snip,
+                })
+                if len(results) >= num:
+                    break
+        except Exception:
+            break
+    return results
+
+
+def duckduckgo_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=15):
+    """Query DuckDuckGo HTML search (free, zero keys, zero CAPTCHAs)."""
+    query = (query or "").strip()
+    if not query:
+        raise ValueError("Empty search query.")
+    loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
+    kl_map = {"us": "us-en", "uk": "uk-en", "ca": "ca-en", "au": "au-en", "de": "de-de", "fr": "fr-fr", "pk": "pk-en", "in": "in-en"}
+    kl = kl_map.get(loc.get("gl", "us"), "wt-wt")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": loc["accept"],
+    }
+    proxies = analyzer._proxies(proxy)
+    results = []
+    seen = set()
+    try:
+        r = requests.post("https://html.duckduckgo.com/html/",
+                          data={"q": query, "kl": kl},
+                          headers=headers, timeout=timeout, proxies=proxies)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, "html.parser")
+            for el in soup.select(".result"):
+                t_a = el.select_one(".result__title a")
+                s_a = el.select_one(".result__snippet")
+                if not t_a:
+                    continue
+                raw_href = t_a.get("href", "").strip()
+                clean_url = raw_href
+                if "uddg=" in raw_href:
+                    clean_url = parse_qs(urlparse(raw_href).query).get("uddg", [raw_href])[0]
+                if not clean_url.startswith(("http://", "https://")):
+                    continue
+                key = clean_url.split("#")[0].rstrip("/")
+                if key in seen:
+                    continue
+                seen.add(key)
+                results.append({
+                    "position": len(results) + 1,
+                    "title": t_a.get_text(strip=True),
+                    "url": clean_url,
+                    "domain": _registrable(urlparse(clean_url).netloc),
+                    "snippet": s_a.get_text(strip=True) if s_a else "",
+                })
+                if len(results) >= num:
+                    break
+    except Exception:
+        pass
+    return results
+
+
+def unified_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, serper_key="", progress=None):
+    """Resilient search engine that makes SERP API keys 100% OPTIONAL:
+    - If `serper_key` is provided -> Uses Serper Google API.
+    - If no `serper_key` (or if Serper key is invalid/expired) -> Seamlessly falls back
+      to direct web search (Google Direct -> Bing -> DuckDuckGo).
+    - NEVER crashes on CAPTCHA or missing keys.
+    Returns (results, engine_name).
+    """
+    log = progress if callable(progress) else (lambda m: None)
+    serper_key = (serper_key or "").strip()
+
+    if serper_key:
+        log("Searching Google via Serper API (%s, top %d results)..." % (country, num))
+        try:
+            results = serper_search(query, country=country, num=num, api_key=serper_key)
+            if results:
+                return results, "serper"
+        except Exception as e:
+            log("Serper API error: %s. Falling back to free search..." % e)
+
+    # Free fallback path
+    log("Attempting direct Google search (%s)..." % country)
+    try:
+        results = google_search(query, country=country, num=num, proxy=proxy)
+        if results:
+            return results, "google-direct"
+    except Exception as e:
+        log("Google Direct blocked or CAPTCHA required (%s). Switching to free fallback search (Bing / DuckDuckGo)..." % e)
+
+    # Bing fallback
+    log("Querying Bing organic search (free, zero keys required)...")
+    results = bing_search(query, country=country, num=num, proxy=proxy)
+    if len(results) < num:
+        log("Merging additional organic results from DuckDuckGo...")
+        ddg_results = duckduckgo_search(query, country=country, num=num - len(results), proxy=proxy)
+        seen = {r["url"].split("#")[0].rstrip("/") for r in results}
+        for item in ddg_results:
+            key = item["url"].split("#")[0].rstrip("/")
+            if key not in seen:
+                seen.add(key)
+                item["position"] = len(results) + 1
+                results.append(item)
+                if len(results) >= num:
+                    break
+
+    if results:
+        log("Retrieved %d organic results via free search engine." % len(results))
+        return results, "free-web-engine"
+
+    raise RuntimeError("Could not retrieve search results. Please check your internet connection or proxy.")
+
+
 # ----------------------------------------------------------------------------
 # Competitor aggregate ("brief"): average the deep-analyzed pages and mine the
 # combined corpus, matching the outline skills' competitor-analysis method.
@@ -527,14 +711,8 @@ def search_and_analyze(query, country=DEFAULT_COUNTRY, num_results=10, deep_n=0,
     loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
     serper_key = (serper_key or "").strip()
 
-    if serper_key:
-        engine = "serper"
-        log("Searching Google via Serper API (%s) ..." % country)
-        results = serper_search(query, country, num=num_results, api_key=serper_key)
-    else:
-        engine = "google-direct"
-        log("Searching Google directly (%s) ..." % country)
-        results = google_search(query, country, num=num_results, proxy=proxy)
+    results, engine = unified_search(query, country=country, num=num_results,
+                                     proxy=proxy, serper_key=serper_key, progress=log)
 
     deep_n = max(0, min(int(deep_n or 0), len(results)))
     # Deep-analyze only genuine competitor pages (skip social/forum/marketplace/
@@ -592,6 +770,135 @@ def search_and_analyze(query, country=DEFAULT_COUNTRY, num_results=10, deep_n=0,
     }
 
 
+def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
+                          pages_per_site=25, max_competitors=5,
+                          proxy=None, serper_key="", progress=None,
+                          custom_stopwords=None, ngram_filter="all", max_workers=8):
+    """Run Google search, filter clean sites, deep-crawl 20-40 pages per competitor,
+    extract per-website Top 20 keywords, compute inter-site comparison matrix,
+    and generate interactive dashboard charts.
+    """
+    log = progress if callable(progress) else (lambda m: None)
+    loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
+    serper_key = (serper_key or "").strip()
+
+    # 1. Google Autocomplete Suggestions
+    log("Scraping Google Autocomplete search suggestions...")
+    suggs = suggestions.get_google_suggestions(query, country=country, proxy=proxy)
+    log("Found %d Google search suggestions." % len(suggs))
+
+    # 2. SERP Query
+    num_results = max(10, min(int(num_results or 10), 30))
+    results, engine = unified_search(query, country=country, num=num_results,
+                                     proxy=proxy, serper_key=serper_key, progress=log)
+
+    # 3. Filter genuine competitor websites (exclude Reddit, Quora, ads, social platforms)
+    seen_domains = set()
+    competitor_targets = []
+    skipped_count = 0
+    for r in results:
+        if _is_competitor(r["url"]):
+            dom = r["domain"]
+            if dom not in seen_domains:
+                seen_domains.add(dom)
+                competitor_targets.append(r)
+                if len(competitor_targets) >= max_competitors:
+                    break
+        else:
+            skipped_count += 1
+
+    if skipped_count > 0:
+        log("Filtered out %d non-competitor / forum / ad links." % skipped_count)
+    log("Identified %d clean competitor websites to deep-crawl." % len(competitor_targets))
+
+    # 4. Deep crawl each competitor site (20 to 40 pages per domain)
+    pages_per_site = max(5, min(int(pages_per_site or 25), 60))
+    competitors_data = []
+
+    for idx, target in enumerate(competitor_targets, start=1):
+        dom = target["domain"]
+        log("[%d/%d] Deep-crawling %s (up to %d pages)..." % (idx, len(competitor_targets), dom, pages_per_site))
+        try:
+            site_data = crawler.crawl_site(
+                start_url=target["url"],
+                max_pages=pages_per_site,
+                proxy=proxy,
+                progress_callback=lambda curr, total, u, d=dom: log("  - [%s] Page %d/%d..." % (d, curr, total)),
+                max_workers=max_workers
+            )
+            competitors_data.append(site_data)
+        except Exception as e:
+            log("Error crawling %s: %s" % (dom, e))
+            competitors_data.append({
+                "domain": dom,
+                "start_url": target["url"],
+                "pages_scraped": 0,
+                "total_words": 0,
+                "pages": [],
+                "combined_text": ""
+            })
+
+    # 5. Build Keyword Matrix (Top 20 per site + Inter-site comparison)
+    log("Synthesizing Top 20 keywords per site and inter-site comparison matrix...")
+    matrix = keyword_matrix.build_inter_site_matrix(
+        competitors_data, top_n_cross=30, custom_stopwords=custom_stopwords, ngram_filter=ngram_filter
+    )
+    for c in competitors_data:
+        c["top_keywords"] = matrix.get("per_site_top_20", {}).get(c["domain"], [])
+    # Guarantee normalized keys for dashboard rendering
+    cross_terms = []
+    for t in matrix.get("cross_site_keywords", []):
+        t_copy = dict(t)
+        t_copy["domain_presence"] = t.get("used_by_count", 0)
+        t_copy["total_occurrences"] = t.get("total_count", 0)
+        t_copy["per_domain"] = t.get("breakdown", {})
+        cross_terms.append(t_copy)
+    matrix["cross_site_terms"] = cross_terms
+
+    # 6. Render Interactive Visual Dashboard
+    log("Generating interactive visual charts dashboard...")
+    dashboard_payload = {
+        "query": query,
+        "country": country,
+        "suggestions": suggs,
+        "competitors_data": competitors_data,
+        "matrix": matrix,
+        "serp_results": results,
+    }
+    dashboard_html = dashboard_renderer.render_dashboard_html(dashboard_payload)
+
+    # SERP-level domain summary
+    domains = [r["domain"] for r in results]
+    domain_counts = {}
+    for d in domains:
+        domain_counts[d] = domain_counts.get(d, 0) + 1
+    top_domains = sorted(domain_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    log("Completed deep analysis across %d competitor websites." % len(competitors_data))
+
+    return {
+        "mode": "deep_crawl",
+        "engine": engine,
+        "query": query,
+        "country": country,
+        "gl": loc["gl"],
+        "hl": loc["hl"],
+        "google_domain": loc["domain"],
+        "proxy_used": bool(proxy),
+        "searched_at": datetime.now().isoformat(timespec="seconds"),
+        "result_count": len(results),
+        "unique_domains": len(domain_counts),
+        "top_domains": [{"domain": d, "count": c} for d, c in top_domains],
+        "suggestions": suggs,
+        "competitors_crawled": len(competitors_data),
+        "pages_per_site": pages_per_site,
+        "competitors_data": competitors_data,
+        "matrix": matrix,
+        "dashboard_html": dashboard_html,
+        "results": results,
+    }
+
+
 # ----------------------------------------------------------------------------
 # Reporting for a search report (JSON reuses analyzer.to_json)
 # ----------------------------------------------------------------------------
@@ -609,11 +916,43 @@ def to_markdown(result):
     out.append("Engine: %s" % result.get("engine", "google-direct"))
     out.append("Proxy used: %s" % ("yes" if result["proxy_used"] else "no"))
     out.append("Searched: %s" % result["searched_at"])
-    out.append("Results: %d   Unique domains: %d   Deep-analyzed: %d" % (
-        result["result_count"], result["unique_domains"], result["deep_analyzed"]))
+    deep_count = result.get("competitors_crawled", result.get("deep_analyzed", 0))
+    out.append("Results: %d   Unique domains: %d   Competitor sites deep-analyzed: %d" % (
+        result["result_count"], result.get("unique_domains", 0), deep_count))
     out.append("")
 
-    if result["top_domains"]:
+    if result.get("suggestions"):
+        out.append("## Google Autocomplete Suggestions")
+        out.append("")
+        for s in result["suggestions"]:
+            out.append("  - %s" % s)
+        out.append("")
+
+    if result.get("matrix"):
+        mat = result["matrix"]
+        out.append("## Inter-Site Keyword Dominance (Cross-Competitor)")
+        out.append("")
+        out.append("| Rank | Keyword / Phrase | Penetration | Total Hits |")
+        out.append("| :--- | :--- | :--- | :--- |")
+        for idx, k in enumerate(mat.get("cross_site_keywords", [])[:25], start=1):
+            out.append("| %d | **%s** | %d/%d (%s%%) | %d |" % (
+                idx, k["keyword"], k["used_by_count"], mat["competitors_count"],
+                k["used_by_pct"], k["total_count"]))
+        out.append("")
+
+        out.append("## Per-Website Top 20 Keywords")
+        out.append("")
+        for dom, kws in mat.get("per_site_top_20", {}).items():
+            out.append("### %s" % dom)
+            out.append("")
+            out.append("| # | Keyword | Hits | Density |")
+            out.append("| :--- | :--- | :--- | :--- |")
+            for idx, item in enumerate(kws[:20], start=1):
+                out.append("| %d | %s | %d | %.2f%% |" % (
+                    idx, item["keyword"], item["count"], item["density_pct"]))
+            out.append("")
+
+    if result.get("top_domains"):
         out.append("## Most-present domains")
         out.append("")
         for d in result["top_domains"][:10]:
@@ -697,8 +1036,12 @@ def _cli():
     ap = argparse.ArgumentParser(description="Search Google from a chosen country and analyze the results.")
     ap.add_argument("query", nargs="?", help="Search query / keyword")
     ap.add_argument("--country", default=DEFAULT_COUNTRY, help="Country to search from (see --list-countries)")
-    ap.add_argument("--num", type=int, default=10, help="Number of results to collect")
-    ap.add_argument("--deep", type=int, default=0, help="Deep-analyze the top N result pages with the page analyzer")
+    ap.add_argument("--num", type=int, default=10, help="Number of results to collect (10-20)")
+    ap.add_argument("--deep", type=int, default=0, help="Deep-analyze the top N result pages with the single-page analyzer")
+    ap.add_argument("--deep-crawl", action="store_true", help="Deep-crawl 20-40 pages per competitor website & synthesize keyword matrix")
+    ap.add_argument("--pages-per-site", type=int, default=25, help="Internal pages to crawl per competitor domain (default: 25)")
+    ap.add_argument("--max-competitors", type=int, default=5, help="Max competitor domains to crawl (default: 5)")
+    ap.add_argument("--html", dest="html_out", metavar="PATH", help="Write interactive visual dashboard HTML to PATH")
     ap.add_argument("--proxy", default="", help="Proxy URL, e.g. http://user:pass@host:port or socks5://host:port")
     ap.add_argument("--serper-key", dest="serper_key", default="", help="Serper.dev API key (or set SERPER_API_KEY) - avoids the CAPTCHA")
     ap.add_argument("--entities", default="", help="Comma-separated entities to measure in deep-analyzed pages")
@@ -728,14 +1071,28 @@ def _cli():
     config.load_env()  # pull GROQ_API_KEY / SERPER_API_KEY from a .env file, if present
     groq_key = args.key or os.environ.get("GROQ_API_KEY", "")
     entities = [e.strip() for e in args.entities.split(",") if e.strip()]
-    result = search_and_analyze(
-        args.query, country=args.country, num_results=args.num, deep_n=args.deep,
-        entities=entities, use_ai=args.ai, api_key=groq_key,
-        model=args.model, proxy=args.proxy.strip() or None,
-        serper_key=args.serper_key or os.environ.get("SERPER_API_KEY", ""),
-        progress=lambda m: print("... " + m, file=sys.stderr),
-    )
+
+    if args.deep_crawl:
+        result = search_and_deep_crawl(
+            args.query, country=args.country, num_results=args.num,
+            pages_per_site=args.pages_per_site, max_competitors=args.max_competitors,
+            proxy=args.proxy.strip() or None,
+            serper_key=args.serper_key or os.environ.get("SERPER_API_KEY", ""),
+            progress=lambda m: print("... " + m, file=sys.stderr),
+        )
+    else:
+        result = search_and_analyze(
+            args.query, country=args.country, num_results=args.num, deep_n=args.deep,
+            entities=entities, use_ai=args.ai, api_key=groq_key,
+            model=args.model, proxy=args.proxy.strip() or None,
+            serper_key=args.serper_key or os.environ.get("SERPER_API_KEY", ""),
+            progress=lambda m: print("... " + m, file=sys.stderr),
+        )
+
     md = to_markdown(result)
+    if args.html_out and result.get("dashboard_html"):
+        open(args.html_out, "w", encoding="utf-8").write(result["dashboard_html"])
+        print("Wrote " + args.html_out, file=sys.stderr)
     if args.md_out:
         open(args.md_out, "w", encoding="utf-8").write(md)
         print("Wrote " + args.md_out, file=sys.stderr)

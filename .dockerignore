@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.env
+.env.local
+*.docx
+*.csv
+report.md
+dashboard.html
