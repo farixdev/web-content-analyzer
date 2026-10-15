@@ -3,6 +3,9 @@ requests>=2.31
 beautifulsoup4>=4.12
 PySide6>=6.6
 python-docx>=1.1          # writer-ready outline .docx export (Export Brief)
+psycopg2-binary>=2.9.9    # Neon PostgreSQL cloud database integration
+curl_cffi>=0.7.0          # Chrome 124 TLS/JA3 bot & CAPTCHA bypass engine
+selenium>=4.20.0          # Real Chrome persistent browser session automation
 
 # Recommended (much better main-content extraction; the tool falls back to a
 # BeautifulSoup heuristic if this is absent)
@@ -12,3 +15,4 @@ matplotlib>=3.7           # chart rendering for exported reports
 # Optional - only needed if you put a SOCKS proxy (socks5://...) in the Proxy
 # field for country-targeted Google search. HTTP/HTTPS proxies need nothing extra.
 # requests[socks]>=2.31
+

@@ -393,5 +393,119 @@ def generate_docx_report(results, output_path="report.docx"):
             r.font.bold = True
             r.font.color.rgb = RGBColor(30, 41, 59)
 
+    # ---------------------------------------------------------
+    # 7. Google People Also Search For (Related Queries)
+    # ---------------------------------------------------------
+    pasf = results.get("people_also_search", [])
+    if pasf:
+        pasf_h = doc.add_heading("5. Google \"People Also Search For\" Intelligence", level=1)
+        pasf_h.runs[0].font.name = "Arial"
+        pasf_h.runs[0].font.color.rgb = RGBColor(30, 58, 138)
+        pasf_h.paragraph_format.space_before = Pt(14)
+        pasf_h.paragraph_format.space_after = Pt(6)
+
+        doc.add_paragraph(
+            "Extracted directly from Google SERP 'People Also Search For' and related search blocks:"
+        ).paragraph_format.space_after = Pt(6)
+
+        for item in pasf:
+            p = doc.add_paragraph(style="List Bullet")
+            title_text = item.get("title", item.get("query", ""))
+            r = p.add_run(title_text)
+            r.font.name = "Arial"
+            r.font.size = Pt(9.5)
+            r.font.bold = True
+            r.font.color.rgb = RGBColor(37, 99, 235)
+
+    # ---------------------------------------------------------
+    # 8. Google Image Search Category Refinements & Topics
+    # ---------------------------------------------------------
+    img_chips = results.get("image_refinements", [])
+    if img_chips:
+        img_h = doc.add_heading("6. Google Image Search Category Refinement Topics", level=1)
+        img_h.runs[0].font.name = "Arial"
+        img_h.runs[0].font.color.rgb = RGBColor(30, 58, 138)
+        img_h.paragraph_format.space_before = Pt(14)
+        img_h.paragraph_format.space_after = Pt(6)
+
+        doc.add_paragraph(
+            "Top-bar refinement category tags extracted from Google Image search mode:"
+        ).paragraph_format.space_after = Pt(6)
+
+        chip_tbl = doc.add_table(rows=1, cols=3)
+        chip_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for idx, text in enumerate(["#", "Topic / Category Chip", "Search Link"]):
+            c = chip_tbl.rows[0].cells[idx]
+            _set_cell_background(c, COLOR_NAVY_HEX)
+            p = c.paragraphs[0]
+            r = p.add_run(text)
+            r.font.bold = True
+            r.font.size = Pt(9)
+            r.font.color.rgb = RGBColor(255, 255, 255)
+
+        for idx, chip in enumerate(img_chips[:24], start=1):
+            row = chip_tbl.add_row()
+            bg = COLOR_LIGHT_BLUE_HEX if idx % 2 == 1 else "FFFFFF"
+            c0, c1, c2 = row.cells[0], row.cells[1], row.cells[2]
+            _set_cell_background(c0, bg)
+            _set_cell_background(c1, bg)
+            _set_cell_background(c2, bg)
+            c0.paragraphs[0].add_run(str(idx)).font.size = Pt(8.5)
+            r_c1 = c1.paragraphs[0].add_run(chip.get("title", ""))
+            r_c1.font.bold = True
+            r_c1.font.size = Pt(9)
+            c2.paragraphs[0].add_run(chip.get("url", "")[:60] + "...").font.size = Pt(8)
+
+    # ---------------------------------------------------------
+    # 9. Forum & Community Discussion Questions Analysis
+    # ---------------------------------------------------------
+    forums = results.get("forum_insights", {})
+    if isinstance(forums, dict) and forums.get("aggregated_questions"):
+        f_h = doc.add_heading("7. Forum & Community Questions Analysis (Reddit / Quora / Forums)", level=1)
+        f_h.runs[0].font.name = "Arial"
+        f_h.runs[0].font.color.rgb = RGBColor(30, 58, 138)
+        f_h.paragraph_format.space_before = Pt(14)
+        f_h.paragraph_format.space_after = Pt(6)
+
+        doc.add_paragraph(
+            f"Extracted questions from top public discussions across {forums.get('total_forums_found', 0)} community threads:"
+        ).paragraph_format.space_after = Pt(6)
+
+        # Intent themes summary
+        themes = forums.get("intent_themes", [])
+        if themes:
+            th_p = doc.add_paragraph()
+            th_run = th_p.add_run("Top Audience Inquiry Themes: ")
+            th_run.bold = True
+            th_p.add_run("  •  ".join([f"{t['theme']} ({t['count']} mentions)" for t in themes[:5]]))
+            th_p.paragraph_format.space_after = Pt(8)
+
+        # Questions table
+        q_table = doc.add_table(rows=1, cols=4)
+        q_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for idx, text in enumerate(["#", "Real Question Asked", "Category", "Platform"]):
+            c = q_table.rows[0].cells[idx]
+            _set_cell_background(c, COLOR_BLUE_HEX)
+            p = c.paragraphs[0]
+            r = p.add_run(text)
+            r.font.bold = True
+            r.font.size = Pt(9)
+            r.font.color.rgb = RGBColor(255, 255, 255)
+
+        for idx, q_item in enumerate(forums.get("aggregated_questions", [])[:20], start=1):
+            row = q_table.add_row()
+            bg = COLOR_LIGHT_BLUE_HEX if idx % 2 == 1 else "FFFFFF"
+            c0, c1, c2, c3 = row.cells[0], row.cells[1], row.cells[2], row.cells[3]
+            _set_cell_background(c0, bg)
+            _set_cell_background(c1, bg)
+            _set_cell_background(c2, bg)
+            _set_cell_background(c3, bg)
+            c0.paragraphs[0].add_run(str(idx)).font.size = Pt(8.5)
+            r_q = c1.paragraphs[0].add_run(q_item.get("question", ""))
+            r_q.font.bold = True
+            r_q.font.size = Pt(9)
+            c2.paragraphs[0].add_run(q_item.get("category", "")).font.size = Pt(8.5)
+            c3.paragraphs[0].add_run(q_item.get("platform", "")).font.size = Pt(8.5)
+
     doc.save(output_path)
     return output_path

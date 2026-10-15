@@ -84,8 +84,32 @@ def _should_crawl(url, base_domain):
     return True
 
 
+def _strip_header_footer_tags(soup):
+    """Thoroughly strip out headers, footers, navigation, sidebars, cookie banners, and ads."""
+    # 1. Standard semantic tags
+    for tag in soup(["header", "footer", "nav", "aside", "menu", "script", "style", "noscript", "iframe", "svg"]):
+        tag.decompose()
+
+    # 2. ARIA roles
+    for role in ["banner", "navigation", "contentinfo", "complementary"]:
+        for el in soup.find_all(attrs={"role": role}):
+            el.decompose()
+
+    # 3. Class or ID heuristics matching header/footer/nav/cookie/sidebar
+    noise_pattern = re.compile(
+        r"(?i)\b(header|site-header|top-nav|navbar|footer|site-footer|sub-footer|main-header|main-footer|menu-wrap|nav-menu|sidebar|cookie|banner|consent|gdpr|breadcrumbs|copyright|modal|popup)\b"
+    )
+    for el in soup.find_all(attrs={"class": noise_pattern}):
+        # Don't decompose if it's the main container or body
+        if el.name not in ("body", "main", "html", "article"):
+            el.decompose()
+    for el in soup.find_all(attrs={"id": noise_pattern}):
+        if el.name not in ("body", "main", "html", "article"):
+            el.decompose()
+
+
 def _extract_page_content(html, url):
-    """Extract clean main text and title from HTML using trafilatura or BeautifulSoup."""
+    """Extract clean main text and title from HTML, strictly removing headers, footers, and nav."""
     title = ""
     text = ""
     try:
@@ -93,17 +117,21 @@ def _extract_page_content(html, url):
         title_tag = soup.find("title")
         if title_tag:
             title = title_tag.get_text(" ", strip=True)
+        # Strip header/footer elements from the parsed tree
+        _strip_header_footer_tags(soup)
+        cleaned_html = str(soup)
     except Exception:
-        pass
+        cleaned_html = html
 
     if trafilatura is not None:
         try:
             extracted = trafilatura.extract(
-                html,
+                cleaned_html,
                 url=url,
                 include_comments=False,
                 include_tables=True,
-                favor_recall=True
+                favor_recall=False,
+                favor_precision=True
             )
             if extracted and extracted.strip():
                 text = extracted.strip()
@@ -111,12 +139,10 @@ def _extract_page_content(html, url):
             pass
 
     if not text:
-        # BeautifulSoup fallback heuristic
+        # BeautifulSoup fallback heuristic with header/footer removed
         try:
-            soup = BeautifulSoup(html, "html.parser")
-            for tag in soup(["script", "style", "nav", "footer", "header", "noscript", "aside"]):
-                tag.decompose()
-            body = soup.find("body") or soup
+            soup = BeautifulSoup(cleaned_html, "html.parser")
+            body = soup.find("main") or soup.find("article") or soup.find("body") or soup
             text = body.get_text(" ", strip=True)
             text = re.sub(r"\s+", " ", text).strip()
         except Exception:
@@ -200,11 +226,38 @@ class SiteCrawler:
         }
 
     def crawl(self, progress_callback=None):
-        """Run concurrent BFS crawl on the domain up to `max_pages`.
-
+        """Run crawl on the domain up to `max_pages`.
+        
+        If max_pages == 1, scrapes only the single landing page that opened without crawling internal links.
         Calls progress_callback(current_count, max_pages, current_url) as pages are completed.
         Returns a dict summarizing all crawled pages.
         """
+        # Fast path: Single landing page only
+        if self.max_pages <= 1:
+            res = self._fetch_worker(self.start_url)
+            pages = []
+            combined_text = ""
+            total_words = 0
+            if res and res.get("text"):
+                pages.append({
+                    "url": res["url"],
+                    "title": res["title"],
+                    "text": res["text"],
+                    "word_count": res["word_count"],
+                })
+                combined_text = res["text"]
+                total_words = res["word_count"]
+                if progress_callback:
+                    progress_callback(1, 1, res["url"])
+            return {
+                "domain": self.base_domain,
+                "start_url": self.start_url,
+                "pages_scraped": len(pages),
+                "total_words": total_words,
+                "pages": pages,
+                "combined_text": combined_text,
+            }
+
         queue = [self.start_url]
         seen = {self.start_url}
         pages = []

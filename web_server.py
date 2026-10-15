@@ -17,14 +17,25 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import csv
+import base64
 import config
 import search
 import dashboard_renderer
 import docx_generator
+import content_comparator
+import db
 
 # Global In-Memory State
 STATE_LOCK = threading.Lock()
+def get_resource_dir():
+    """Return base directory for bundled templates and assets (supports PyInstaller sys._MEIPASS)."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 state = {
+
     "status": "idle",       # "idle", "running", "complete", "error"
     "progress": 0,
     "step": "Ready",
@@ -35,6 +46,8 @@ state = {
     "report_md": "",
     "docx_path": "report.docx",
     "csv_path": "report.csv",
+    "comparison": None,
+    "comparison_docx_path": "content_comparison_report.docx",
 }
 
 
@@ -127,14 +140,18 @@ def run_analysis_worker(params):
         ngram_filter = params.get("ngram_filter", "all")
         max_workers = int(params.get("max_workers", 8))
 
-        # Run Deep Crawl Orchestrator
+        # Run Search and Competitor Scraper
+        pages_per_site = int(params.get("pages_per_site", 1))
+        max_competitors = int(params.get("max_competitors", 5))
+        proxy_val = (params.get("proxy") or "").strip() or None
+
         results = search.search_and_deep_crawl(
             query=params["query"],
             country=params.get("country", "United States"),
             num_results=params.get("num_results", 15),
-            pages_per_site=params.get("pages_per_site", 25),
-            max_competitors=params.get("max_competitors", 5),
-            proxy=params.get("proxy") or None,
+            pages_per_site=pages_per_site,
+            max_competitors=max_competitors,
+            proxy=proxy_val,
             serper_key=serper_key,
             progress=progress_callback,
             custom_stopwords=custom_stopwords,
@@ -148,9 +165,12 @@ def run_analysis_worker(params):
             "query": results["query"],
             "country": results["country"],
             "suggestions": results.get("suggestions", []),
+            "people_also_search": results.get("people_also_search", []),
+            "image_refinements": results.get("image_refinements", []),
+            "forum_insights": results.get("forum_insights", {}),
             "competitors_data": results.get("competitors_data", []),
             "matrix": results.get("matrix", {}),
-            "serp_results": results.get("serp_results", []),
+            "serp_results": results.get("results", []),
         }
         dash_html = dashboard_renderer.render_dashboard_html(dashboard_payload)
         rep_md = search.to_markdown(results)
@@ -214,7 +234,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
 
         # 1. Main Application Dashboard
         if path == "/" or path == "/index.html":
-            template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+            template_path = os.path.join(get_resource_dir(), "templates", "index.html")
             if not os.path.isfile(template_path):
                 self.send_error(404, "templates/index.html not found")
                 return
@@ -230,7 +250,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
         # 2. Local Assets (e.g. chart.umd.min.js)
         if path.startswith("/assets/"):
             filename = os.path.basename(path)
-            asset_path = os.path.join(os.path.dirname(__file__), "assets", filename)
+            asset_path = os.path.join(get_resource_dir(), "assets", filename)
             if os.path.isfile(asset_path):
                 with open(asset_path, "rb") as f:
                     content = f.read()
@@ -381,7 +401,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
 
         # 10. Documentation: Official PDF User Manual
         if path == "/api/export/manual" or path == "/manual.pdf":
-            manual_path = os.path.join(os.path.dirname(__file__), "Mindcob_Web_Content_Analyzer_User_Manual.pdf")
+            manual_path = os.path.join(get_resource_dir(), "Mindcob_Web_Content_Analyzer_User_Manual.pdf")
             if os.path.isfile(manual_path):
                 with open(manual_path, "rb") as f:
                     data = f.read()
@@ -393,6 +413,99 @@ class WebAppHandler(BaseHTTPRequestHandler):
                 self.wfile.write(data)
                 return
             self.send_error(404, "User Manual PDF not found")
+            return
+
+        # 11. Database: History & Saved Analyses
+        if path == "/api/history":
+            try:
+                analyses = db.list_analyses(limit=25)
+                comparisons = db.list_comparisons(limit=25)
+                payload = json.dumps({"ok": True, "analyses": analyses, "searches": analyses, "comparisons": comparisons}).encode("utf-8")
+                self.send_response(200)
+
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
+            except Exception as e:
+                err = json.dumps({"ok": False, "error": str(e)}).encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(err)))
+                self.end_headers()
+                self.wfile.write(err)
+                return
+
+        # 12. Database: Load Saved Analysis
+        if path == "/api/history/load":
+            query_params = parse_qs(parsed.query)
+            analysis_id = query_params.get("id", [""])[0]
+            if not analysis_id:
+                self.send_error(400, "Missing id parameter")
+                return
+            try:
+                record = db.get_analysis(int(analysis_id))
+                if not record:
+                    self.send_error(404, "Analysis record not found")
+                    return
+                # Restore state
+                with STATE_LOCK:
+                    state["results"] = record
+                    state["status"] = "complete"
+                    state["progress"] = 100
+                    state["step"] = f"Loaded analysis #{analysis_id} for '{record.get('query')}'"
+                    # Re-render dashboard
+                    dash_payload = {
+                        "query": record.get("query"),
+                        "country": record.get("country"),
+                        "suggestions": record.get("raw_summary", {}).get("suggestions", []),
+                        "people_also_search": record.get("people_also_search", []),
+                        "image_refinements": record.get("image_refinements", []),
+                        "forum_insights": record.get("forum_insights", {}),
+                        "competitors_data": record.get("results", []),
+                        "matrix": record.get("matrix", {}),
+                        "serp_results": record.get("results", []),
+                    }
+                    state["dashboard_html"] = dashboard_renderer.render_dashboard_html(dash_payload)
+
+                payload = json.dumps({"ok": True, "message": "Loaded successfully", "results": record}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
+            except Exception as e:
+                err = json.dumps({"ok": False, "error": str(e)}).encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(err)))
+                self.end_headers()
+                self.wfile.write(err)
+                return
+
+        # 13. Export: Download Content Comparison Word Document (.docx)
+        if path == "/api/compare/docx":
+            comp_path = "content_comparison_report.docx"
+            with STATE_LOCK:
+                comp_data = state.get("comparison")
+            if not os.path.isfile(comp_path) and comp_data:
+                try:
+                    content_comparator.generate_comparison_docx(comp_data, comp_path)
+                except Exception:
+                    pass
+            if os.path.isfile(comp_path):
+                with open(comp_path, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                self.send_header("Content-Disposition", 'attachment; filename="content_vs_competitors_comparison.docx"')
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            self.send_error(404, "No comparison document available. Run a comparison analysis first.")
             return
 
         self.send_error(404, "Page not found")
@@ -434,6 +547,91 @@ class WebAppHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(resp)
             return
+
+        # API: Content Comparison vs Competitors
+        if path == "/api/compare":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                payload = json.loads(body.decode("utf-8"))
+            except Exception:
+                self.send_error(400, "Invalid JSON payload")
+                return
+
+            doc_text = ""
+            doc_name = (payload.get("doc_name") or "Draft Document").strip()
+
+            # 1. Base64 encoded docx file
+            if payload.get("docx_base64"):
+                try:
+                    raw_bytes = base64.b64decode(payload["docx_base64"])
+                    doc_text = content_comparator.extract_text_from_docx(raw_bytes)
+                except Exception as e:
+                    self.send_error(400, f"Failed to parse uploaded Word document: {e}")
+                    return
+
+            # 2. Raw text input
+            if not doc_text and payload.get("text"):
+                doc_text = payload["text"].strip()
+
+            if not doc_text:
+                self.send_error(400, "Please provide document text or upload a valid .docx file.")
+                return
+
+            # Retrieve current competitor matrix
+            with STATE_LOCK:
+                res = state.get("results") or {}
+                matrix = res.get("matrix", {})
+                current_query = res.get("query", "")
+                analysis_id = res.get("db_id") or res.get("id")
+
+            if not matrix or not matrix.get("cross_site_keywords") and not matrix.get("cross_site_terms"):
+                self.send_error(400, "No competitor analysis matrix available. Run a competitor search analysis first.")
+                return
+
+            try:
+                comp_result = content_comparator.compare_content_against_competitors(
+                    doc_text=doc_text,
+                    matrix=matrix,
+                    query=current_query,
+                    doc_name=doc_name
+                )
+                # Generate Word DOCX report
+                docx_path = "content_comparison_report.docx"
+                content_comparator.generate_comparison_docx(comp_result, docx_path)
+
+                # Save comparison in Neon PostgreSQL
+                try:
+                    comp_db_id = db.save_comparison({
+                        "analysis_id": analysis_id,
+                        "query": current_query,
+                        "doc_name": doc_name,
+                        "word_count": comp_result["word_count"],
+                        "comparison_data": comp_result
+                    })
+                    comp_result["db_id"] = comp_db_id
+                except Exception:
+                    pass
+
+                with STATE_LOCK:
+                    state["comparison"] = comp_result
+
+                out = json.dumps({"ok": True, "comparison": comp_result}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(out)))
+                self.end_headers()
+                self.wfile.write(out)
+                return
+
+            except Exception as e:
+                err_json = json.dumps({"ok": False, "error": str(e)}).encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(err_json)))
+                self.end_headers()
+                self.wfile.write(err_json)
+                return
 
         self.send_error(404, "Endpoint not found")
 

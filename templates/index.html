@@ -644,10 +644,118 @@
       color: var(--emerald);
     }
 
+    .badge-amber {
+      background: #FFFBEB;
+      border: 1px solid rgba(217, 119, 6, 0.25);
+      color: #D97706;
+    }
+
+    .badge-rose {
+      background: #FEF2F2;
+      border: 1px solid rgba(220, 38, 38, 0.25);
+      color: #DC2626;
+    }
+
     .badge-slate {
       background: var(--bg-surface-alt);
       border: 1px solid var(--border-color);
       color: var(--text-body);
+    }
+
+    /* Comparison & Special Components */
+    .drop-zone {
+      border: 2px dashed #CBD5E1;
+      border-radius: var(--radius-lg);
+      padding: 28px 20px;
+      text-align: center;
+      background: #F8FAFC;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .score-circle {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) calc(var(--score, 0) * 1%), #E2E8F0 0);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px auto;
+      position: relative;
+    }
+
+    .score-circle::after {
+      content: attr(data-score);
+      position: absolute;
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .pasf-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-decoration: none;
+      color: var(--text-main);
+      transition: all 0.15s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pasf-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.12);
+      transform: translateY(-1px);
+      color: var(--primary);
+    }
+
+    .img-chip {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F172A;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .img-chip:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .forum-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
     }
 
     .overlap-bar {
@@ -763,14 +871,14 @@
     <section class="hero-card">
       <div class="hero-header">
         <h1 class="hero-title">Competitor Intelligence & Keyword Dominance</h1>
-        <p class="hero-desc">Discover what competitors rank for, crawl 20–40 internal pages per site, analyze shared keyword dominance, and download formatted Word (.docx) reports with embedded charts.</p>
+        <p class="hero-desc">Discover what competitors rank for, crawl landing pages or deep internal pages, strip header/footers, analyze shared keyword dominance, uncover Google PASF & Image topics, extract forum search intent, and benchmark your .docx content against competitors.</p>
       </div>
 
       <form id="searchForm" onsubmit="startAnalysis(event)">
         <div class="search-row">
           <div class="input-group">
             <label class="input-label" for="queryInput">Search Query / Primary Keyword</label>
-            <input type="text" id="queryInput" class="input-control" required autofocus>
+            <input type="text" id="queryInput" class="input-control" placeholder="e.g. POS system, CRM software, coffee grinder" required autofocus>
           </div>
 
           <div class="input-group">
@@ -804,20 +912,28 @@
         <!-- Customization Controls Grid -->
         <div class="controls-grid">
           <div class="input-group">
-            <span class="input-label">Competitor Sites:</span>
-            <div class="chip-group" id="competitorsChips">
-              <button type="button" class="chip-btn" data-val="3">3 Sites</button>
-              <button type="button" class="chip-btn active" data-val="5">5 Sites (Rec)</button>
-              <button type="button" class="chip-btn" data-val="8">8 Sites</button>
+            <label class="input-label" for="competitorsCountInput">Competitor Sites (Custom Count):</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="competitorsCountInput" class="input-control" value="5" min="1" max="50" style="max-width:85px; text-align:center; font-weight:700;">
+              <div class="chip-group" id="competitorsChips">
+                <button type="button" class="chip-btn" data-val="3">3</button>
+                <button type="button" class="chip-btn active" data-val="5">5 Sites</button>
+                <button type="button" class="chip-btn" data-val="8">8</button>
+                <button type="button" class="chip-btn" data-val="12">12</button>
+                <button type="button" class="chip-btn" data-val="20">20</button>
+              </div>
             </div>
           </div>
 
           <div class="input-group">
-            <span class="input-label">Pages / Competitor:</span>
-            <div class="chip-group" id="pagesChips">
-              <button type="button" class="chip-btn" data-val="15">15 Pages</button>
-              <button type="button" class="chip-btn active" data-val="25">25 Pages (Rec)</button>
-              <button type="button" class="chip-btn" data-val="40">40 Pages</button>
+            <label class="input-label" for="pagesPerSiteInput">Pages / Site (Header/Footer Stripped):</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="pagesPerSiteInput" class="input-control" value="1" min="1" max="50" style="max-width:85px; text-align:center; font-weight:700;">
+              <div class="chip-group" id="pagesChips">
+                <button type="button" class="chip-btn active" data-val="1">1 Page (Only Open Page - Rec)</button>
+                <button type="button" class="chip-btn" data-val="10">10 Pages</button>
+                <button type="button" class="chip-btn" data-val="25">25 Pages</button>
+              </div>
             </div>
           </div>
 
@@ -852,25 +968,42 @@
             <line x1="9" y1="8" x2="15" y2="8"></line>
             <line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>
-          <span>Advanced Filters & Custom Stopwords</span>
+          <span>Advanced Settings: Proxy & CAPTCHA Bypass & Neon Database</span>
         </button>
 
         <!-- Collapsible Advanced Drawer -->
         <div class="settings-drawer" id="settingsDrawer">
-          <div class="input-group">
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+            <div class="input-group">
+              <label class="input-label" for="proxyInput">
+                Custom Proxy URL <span style="color:var(--text-muted); font-weight:normal;">(Optional - HTTP/HTTPS/SOCKS5)</span>
+              </label>
+              <input type="text" id="proxyInput" class="input-control" placeholder="e.g. http://username:password@proxy-host:port">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="serperKeyInput">
+                SERP API Key (Serper)
+                <span style="color:var(--text-muted); text-transform:none; font-weight:normal;">(Optional - bypasses all CAPTCHAs)</span>
+              </label>
+              <input type="text" id="serperKeyInput" class="input-control">
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-top:14px;">
             <label class="input-label" for="customStopwordsInput">
               Custom Stopwords to Exclude
               <span style="color:var(--text-muted); text-transform:none; font-weight:normal;">(comma-separated)</span>
             </label>
-            <input type="text" id="customStopwordsInput" class="input-control">
+            <input type="text" id="customStopwordsInput" class="input-control" placeholder="e.g. click here, learn more, privacy policy">
           </div>
 
-          <div class="input-group">
-            <label class="input-label" for="serperKeyInput">
-              SERP API Key (Serper)
-              <span style="color:var(--text-muted); text-transform:none; font-weight:normal;">(Optional - leave blank for 100% free search)</span>
-            </label>
-            <input type="text" id="serperKeyInput" class="input-control">
+          <div style="margin-top:16px; padding:12px; background:var(--bg-surface-alt); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="status-dot" style="background:var(--emerald);"></span>
+              <span style="font-size:12px; font-weight:600; color:var(--text-main);">Neon Cloud PostgreSQL Database: Connected & Active</span>
+            </div>
+            <span class="badge badge-emerald">ep-plain-rain-b4q8d8ub.aws.neon.tech</span>
           </div>
         </div>
       </form>
@@ -987,6 +1120,22 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="9" y1="18" x2="9" y2="18.01"></line><line x1="15" y1="18" x2="15" y2="18.01"></line><line x1="9" y1="14" x2="9" y2="14.01"></line><line x1="15" y1="14" x2="15" y2="14.01"></line><line x1="9" y1="10" x2="9" y2="10.01"></line><line x1="15" y1="10" x2="15" y2="10.01"></line><line x1="9" y1="6" x2="9" y2="6.01"></line><line x1="15" y1="6" x2="15" y2="6.01"></line></svg>
           <span>Competitor Deep Dive</span>
         </button>
+        <button type="button" class="tab-btn" onclick="switchTab('pasfTab', this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>People Also Search For</span>
+        </button>
+        <button type="button" class="tab-btn" onclick="switchTab('imageTopicsTab', this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>Google Image Topics</span>
+        </button>
+        <button type="button" class="tab-btn" onclick="switchTab('forumTab', this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>Forum Questions & Intent</span>
+        </button>
+        <button type="button" class="tab-btn" onclick="switchTab('compareTab', this)" style="background:var(--primary-light); color:var(--primary); font-weight:700;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Compare Content (.docx)</span>
+        </button>
         <button type="button" class="tab-btn" onclick="switchTab('suggestionsTab', this)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
           <span>Google Suggestions</span>
@@ -994,6 +1143,10 @@
         <button type="button" class="tab-btn" onclick="switchTab('serpTab', this)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <span>Organic SERP Results</span>
+        </button>
+        <button type="button" class="tab-btn" onclick="switchTab('historyTab', this); loadHistory();">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"></polyline><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
+          <span>Neon DB Archive</span>
         </button>
       </nav>
 
@@ -1025,7 +1178,7 @@
               <h3 class="panel-title">Keyword Dominance Matrix Table</h3>
               <p class="panel-desc">Keyword ranking with competitor presence and occurrences per website</p>
             </div>
-            <input type="text" id="matrixSearchInput" class="input-control" style="max-width:240px; padding:6px 12px; font-size:12px;" onkeyup="filterMatrixTable()">
+            <input type="text" id="matrixSearchInput" class="input-control" style="max-width:240px; padding:6px 12px; font-size:12px;" placeholder="Search keywords..." onkeyup="filterMatrixTable()">
           </div>
 
           <div class="table-responsive">
@@ -1092,8 +1245,8 @@
         <div class="panel">
           <div class="panel-header">
             <div>
-              <h3 class="panel-title">Crawled Internal Pages Directory</h3>
-              <p class="panel-desc">All pages scraped for this competitor domain</p>
+              <h3 class="panel-title">Crawled Pages Directory (Header & Footer Stripped)</h3>
+              <p class="panel-desc">Landing pages and internal pages scraped for this competitor domain</p>
             </div>
           </div>
           <div class="table-responsive">
@@ -1114,7 +1267,242 @@
         </div>
       </div>
 
-      <!-- Tab 3: Google Suggestions -->
+      <!-- Tab: People Also Search For (PASF) -->
+      <div class="tab-pane" id="pasfTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Google "People Also Search For" Queries</h3>
+              <p class="panel-desc">Extracted search intent queries from Google's recommendation clusters (div.y6Uyqe, span.dg6jd, div.b2Rnsc)</p>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;" id="pasfContainer">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Google Image Refinement Topics -->
+      <div class="tab-pane" id="imageTopicsTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Google Image Category Refinements (Top Bar Chips)</h3>
+              <p class="panel-desc">Visual topic classification chips scraped from Google Images top bar navigation (div.IUOThf, div.TrmO7, span.FMKtTb)</p>
+            </div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:10px;" id="imageChipsContainer">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Forum Questions & Search Intent -->
+      <div class="tab-pane" id="forumTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Forum Questions & Community Inquiries</h3>
+              <p class="panel-desc">Real questions asked by real people on Reddit, Quora, Spiceworks, StackExchange, and industry forums</p>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;" id="intentFilterPills">
+              <!-- Intent filter pills injected via JS -->
+            </div>
+          </div>
+          <div id="forumQuestionsList">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Analyzed Forum Discussions</h3>
+              <p class="panel-desc">Top forum threads scraped with headers and footers removed</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Platform / Domain</th>
+                  <th>Discussion Title & Thread Link</th>
+                  <th>Questions Found</th>
+                  <th>Word Count</th>
+                </tr>
+              </thead>
+              <tbody id="forumThreadsTableBody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Compare Content (.docx Upload & Gap Analysis) -->
+      <div class="tab-pane" id="compareTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Benchmark Content vs Scraped Competitor Intelligence</h3>
+              <p class="panel-desc">Upload your draft article (.docx) or paste content to compute keyword density ratios, identify missing dominant terms, and export a Word report.</p>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start;">
+            <div>
+              <label class="input-label" style="margin-bottom:8px;">Upload Word Document (.docx):</label>
+              <div class="drop-zone" id="docxDropZone" onclick="document.getElementById('docxFileInput').click()">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 10px auto; display:block;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="12" y1="18" x2="12" y2="12"></line>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                <div style="font-weight:600; color:var(--text-main); font-size:14px;" id="dropZoneText">Click or Drag & Drop .docx File Here</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Supports all standard Word .docx documents</div>
+                <input type="file" id="docxFileInput" accept=".docx" style="display:none;" onchange="handleFileSelect(event)">
+              </div>
+            </div>
+
+            <div>
+              <label class="input-label" for="compareTextInput" style="margin-bottom:8px;">Or Paste Draft Article / Content Text:</label>
+              <textarea id="compareTextInput" class="input-control" rows="6" placeholder="Paste your article draft text here if you don't have a .docx file..."></textarea>
+            </div>
+          </div>
+
+          <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+            <button type="button" class="btn-primary" id="compareSubmitBtn" onclick="runContentComparison()" style="padding:12px 28px; font-size:14px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              <span>Analyze & Benchmark vs Competitors</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Comparison Results Area -->
+        <div id="compareResultsArea" style="display:none;">
+          <!-- KPI Summary -->
+          <div class="kpi-grid" style="margin-bottom:20px;">
+            <div class="kpi-card" style="text-align:center;">
+              <div class="score-circle" id="compareScoreGauge" style="--score:0;" data-score="0"></div>
+              <span class="kpi-label">Optimization Score</span>
+              <span class="kpi-sub" id="compareScoreSub">Based on keyword coverage</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Your Word Count</span>
+              <span class="kpi-value" id="compareWordCount">0</span>
+              <span class="kpi-sub" id="compareWordDiff">vs 0 competitor avg</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Readability (Flesch)</span>
+              <span class="kpi-value" id="compareFleschScore">0</span>
+              <span class="kpi-sub" id="compareFleschLevel">Standard</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Missing Content Gaps</span>
+              <span class="kpi-value" id="compareGapsCount" style="color:var(--rose);">0</span>
+              <span class="kpi-sub">Competitor terms to add</span>
+            </div>
+          </div>
+
+          <!-- Download Comparison Word Report -->
+          <div style="background:var(--primary-light); border:1px solid rgba(37,99,235,0.25); border-radius:var(--radius-md); padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+            <div>
+              <div style="font-weight:700; color:var(--primary-dark); font-size:14.5px;">Download Full Comparison Report (.docx)</div>
+              <div style="font-size:12.5px; color:var(--text-body);">Includes side-by-side keyword ratio analysis, missing content opportunities, and recommendations.</div>
+            </div>
+            <a href="/api/compare/docx" download="content_vs_competitors_comparison.docx" class="btn-docx">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>Download Comparison Word (.docx)</span>
+            </a>
+          </div>
+
+          <!-- Side-by-Side Chart -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Keyword Density Benchmark Chart (Your Content vs Competitors)</h3>
+                <p class="panel-desc">Visual comparison of keyword frequency density percentage across top shared terms</p>
+              </div>
+            </div>
+            <div class="chart-container" style="height:350px;">
+              <canvas id="compareDensityChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Missing Keyword Opportunities (Content Gap) -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title" style="color:var(--rose);">High-Priority Missing Content Opportunities (Content Gaps)</h3>
+                <p class="panel-desc">Keywords heavily used across competitors that are completely missing from your content</p>
+              </div>
+              <button type="button" class="btn-action" onclick="copyMissingKeywords()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copy Missing Keywords</span>
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Keyword / Term</th>
+                    <th>Competitor Penetration</th>
+                    <th>Competitor Total Hits</th>
+                    <th>Competitor Avg Density</th>
+                    <th>Recommended Action</th>
+                  </tr>
+                </thead>
+                <tbody id="compareGapsTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Complete Comparison Table -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Complete Keyword Ratio Benchmark Matrix</h3>
+                <p class="panel-desc">Ratio of your keyword density compared against the competitor average</p>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Keyword</th>
+                    <th>Your Count</th>
+                    <th>Your Density %</th>
+                    <th>Competitor Avg %</th>
+                    <th>Ratio (Your / Comp)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="compareMatrixTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Google Suggestions -->
       <div class="tab-pane" id="suggestionsTab">
         <div class="panel">
           <div class="panel-header">
@@ -1129,7 +1517,7 @@
         </div>
       </div>
 
-      <!-- Tab 4: Organic SERP Results -->
+      <!-- Tab: Organic SERP Results -->
       <div class="tab-pane" id="serpTab">
         <div class="panel">
           <div class="panel-header">
@@ -1157,6 +1545,67 @@
         </div>
       </div>
 
+      <!-- Tab: Neon DB History Archive -->
+      <div class="tab-pane" id="historyTab">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Neon PostgreSQL Search Analyses Archive</h3>
+              <p class="panel-desc">Historical competitor searches stored in your Neon cloud database. Click "Load" to restore any past analysis.</p>
+            </div>
+            <button type="button" class="btn-action" onclick="loadHistory()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+              <span>Refresh Database</span>
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Query</th>
+                  <th>Country</th>
+                  <th>Competitors</th>
+                  <th>Engine</th>
+                  <th>Timestamp</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="historySearchesTableBody">
+                <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading database records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Saved Content Comparisons</h3>
+              <p class="panel-desc">Content gap benchmarks saved to Neon PostgreSQL</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Document Title</th>
+                  <th>Source</th>
+                  <th>Word Count</th>
+                  <th>Optimization Score</th>
+                  <th>Missing Gaps</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="historyComparisonsTableBody">
+                <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading comparison records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </main>
 
   </div>
@@ -1168,12 +1617,41 @@
   <script>
     // Global State
     let currentResults = null;
+    let currentComparison = null;
     let selectedCompetitorIdx = 0;
+    let selectedDocxFile = null;
+    let activeForumIntent = 'all';
     let dominanceChartInstance = null;
     let competitorChartInstance = null;
+    let compareChartInstance = null;
     let pollInterval = null;
 
-    // Chip Handlers
+    // Synchronize inputs with quick-select chips
+    function setupInputChipSync(inputId, chipContainerId) {
+      const input = document.getElementById(inputId);
+      const container = document.getElementById(chipContainerId);
+      if (!input || !container) return;
+
+      container.querySelectorAll('.chip-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          input.value = btn.dataset.val;
+        });
+      });
+
+      input.addEventListener('input', () => {
+        const val = input.value;
+        container.querySelectorAll('.chip-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.val === val);
+        });
+      });
+    }
+
+    setupInputChipSync('competitorsCountInput', 'competitorsChips');
+    setupInputChipSync('pagesPerSiteInput', 'pagesChips');
+
+    // Setup other chip groups
     function setupChipGroup(containerId) {
       document.querySelectorAll(`#${containerId} .chip-btn`).forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1183,8 +1661,6 @@
       });
     }
 
-    setupChipGroup('competitorsChips');
-    setupChipGroup('pagesChips');
     setupChipGroup('ngramChips');
     setupChipGroup('speedChips');
 
@@ -1197,7 +1673,8 @@
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById(tabId).classList.add('active');
+      const targetPane = document.getElementById(tabId);
+      if (targetPane) targetPane.classList.add('active');
     }
 
     // Start Analysis
@@ -1208,12 +1685,13 @@
 
       const country = document.getElementById('countrySelect').value;
       const serperKey = document.getElementById('serperKeyInput').value.trim();
+      const proxy = document.getElementById('proxyInput').value.trim();
       const customStopwords = document.getElementById('customStopwordsInput').value.trim();
 
-      const maxCompetitors = parseInt(document.querySelector('#competitorsChips .chip-btn.active').dataset.val, 10);
-      const pagesPerSite = parseInt(document.querySelector('#pagesChips .chip-btn.active').dataset.val, 10);
-      const ngramFilter = document.querySelector('#ngramChips .chip-btn.active').dataset.val;
-      const maxWorkers = parseInt(document.querySelector('#speedChips .chip-btn.active').dataset.val, 10);
+      const maxCompetitors = parseInt(document.getElementById('competitorsCountInput').value, 10) || 5;
+      const pagesPerSite = parseInt(document.getElementById('pagesPerSiteInput').value, 10) || 1;
+      const ngramFilter = document.querySelector('#ngramChips .chip-btn.active')?.dataset.val || 'all';
+      const maxWorkers = parseInt(document.querySelector('#speedChips .chip-btn.active')?.dataset.val, 10) || 8;
 
       // UI state transition
       document.getElementById('startBtn').disabled = true;
@@ -1223,7 +1701,8 @@
       document.getElementById('globalStatusText').textContent = 'Analyzing Competitors...';
 
       const terminal = document.getElementById('terminalLog');
-      terminal.innerHTML = `<div>[System] Starting analysis for "${escapeHtml(query)}" in ${country}...</div>`;
+      terminal.innerHTML = `<div>[System] Starting analysis for "${escapeHtml(query)}" in ${country}...</div>
+      <div>[Config] Competitor Sites: ${maxCompetitors} | Pages/Site: ${pagesPerSite} (Headers/Footers Stripped)</div>`;
 
       try {
         const resp = await fetch('/api/analyze', {
@@ -1235,6 +1714,7 @@
             num_results: 15,
             pages_per_site: pagesPerSite,
             max_competitors: maxCompetitors,
+            proxy: proxy,
             serper_key: serperKey,
             custom_stopwords: customStopwords,
             ngram_filter: ngramFilter,
@@ -1273,8 +1753,8 @@
         if (data.logs && data.logs.length > 0) {
           terminal.innerHTML = data.logs.map(l => {
             let cls = '';
-            if (l.includes('Deep-crawling') || l.includes('Dominance') || l.includes('Word Document')) cls = 'term-highlight';
-            else if (l.includes('Found') || l.includes('Retrieved') || l.includes('Completed') || l.includes('ready')) cls = 'term-success';
+            if (l.includes('Deep-crawling') || l.includes('Dominance') || l.includes('Word Document') || l.includes('Forum') || l.includes('People Also Search')) cls = 'term-highlight';
+            else if (l.includes('Found') || l.includes('Retrieved') || l.includes('Completed') || l.includes('ready') || l.includes('saved to Neon')) cls = 'term-success';
             else if (l.includes('Blocked') || l.includes('Switching') || l.includes('Error')) cls = 'term-warning';
             return `<div class="${cls}">${escapeHtml(l)}</div>`;
           }).join('');
@@ -1324,7 +1804,10 @@
       const competitors = data.competitors_data || [];
       const matrix = data.matrix || {};
       const suggestions = data.suggestions || [];
-      const serp = data.serp_results || [];
+      const serp = data.serp_results || data.results || [];
+      const pasf = data.people_also_search || [];
+      const imageChips = data.image_refinements || [];
+      const forumData = data.forum_insights || {};
 
       // KPIs
       document.getElementById('kpiCompetitors').textContent = competitors.length;
@@ -1338,9 +1821,9 @@
       const crossTerms = matrix.cross_site_terms || matrix.cross_site_keywords || [];
       document.getElementById('kpiKeywords').textContent = crossTerms.length;
 
-      const engineName = data.engine === 'serper' ? 'Google Serper API' : 'Free Search Engine';
+      const engineName = data.engine === 'serper' ? 'Google Serper API' : (data.engine === 'chrome-session' ? 'Chrome Session Mode' : 'Free Search Engine');
       document.getElementById('kpiEngine').textContent = engineName;
-      document.getElementById('kpiEngineSub').textContent = data.engine === 'serper' ? 'API Key Active' : 'Zero Keys Required (100% Free)';
+      document.getElementById('kpiEngineSub').textContent = data.db_id ? `Saved in Neon DB (#${data.db_id})` : 'Zero Keys Required (100% Free)';
 
       // 1. Dominance View
       renderDominanceView(crossTerms, competitors.length);
@@ -1348,10 +1831,19 @@
       // 2. Competitor View
       renderCompetitorView(competitors);
 
-      // 3. Suggestions View
+      // 3. PASF View
+      renderPasfView(pasf);
+
+      // 4. Google Image Topics View
+      renderImageTopicsView(imageChips);
+
+      // 5. Forum Questions & Intent View
+      renderForumView(forumData);
+
+      // 6. Suggestions View
       renderSuggestionsView(suggestions);
 
-      // 4. SERP View
+      // 7. SERP View
       renderSerpView(serp);
     }
 
@@ -1363,7 +1855,6 @@
       const ctx = document.getElementById('dominanceChart').getContext('2d');
       if (dominanceChartInstance) dominanceChartInstance.destroy();
 
-      // Clean Corporate Blue Chart
       dominanceChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1471,7 +1962,7 @@
       if (!c) return;
 
       document.getElementById('competitorChartTitle').textContent = `${c.domain} - Top 20 Keywords`;
-      document.getElementById('competitorChartDesc').textContent = `Total pages scraped: ${c.pages_scraped || 0} | Total words: ${(c.total_words || 0).toLocaleString()}`;
+      document.getElementById('competitorChartDesc').textContent = `Total pages scraped: ${c.pages_scraped || 0} | Total words: ${(c.total_words || 0).toLocaleString()} (Header/Footer Stripped)`;
 
       const topKeywords = (c.top_keywords || []).slice(0, 20);
       const labels = topKeywords.map(k => k.keyword);
@@ -1536,6 +2027,454 @@
           <td><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--primary); text-decoration:none; font-weight:600;">Visit &rarr;</a></td>
         </tr>
       `).join('');
+    }
+
+    // Render People Also Search For (PASF)
+    function renderPasfView(pasfList) {
+      const container = document.getElementById('pasfContainer');
+      if (!pasfList || pasfList.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); grid-column:1/-1;">No "People Also Search For" queries found for this search term.</div>';
+        return;
+      }
+
+      container.innerHTML = pasfList.map(item => {
+        const queryText = typeof item === 'string' ? item : (item.query || '');
+        const searchHref = (typeof item === 'object' && item.href && item.href.startsWith('http')) ? 
+          item.href : 
+          `https://www.google.com/search?q=${encodeURIComponent(queryText)}`;
+
+        return `
+          <a href="${escapeHtml(searchHref)}" target="_blank" rel="noopener noreferrer" class="pasf-card">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span style="font-weight:600; font-size:13.5px;">${escapeHtml(queryText)}</span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </a>
+        `;
+      }).join('');
+    }
+
+    // Render Google Image Refinement Chips
+    function renderImageTopicsView(chips) {
+      const container = document.getElementById('imageChipsContainer');
+      if (!chips || chips.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted);">No Google Image category chips found.</div>';
+        return;
+      }
+
+      container.innerHTML = chips.map(c => {
+        const title = typeof c === 'string' ? c : (c.title || '');
+        const href = (typeof c === 'object' && c.href && c.href.startsWith('http')) ? 
+          c.href : 
+          `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(title)}`;
+        const imgSrc = (typeof c === 'object' && c.thumbnail) ? c.thumbnail : '';
+
+        return `
+          <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="img-chip">
+            ${imgSrc ? `<img src="${escapeHtml(imgSrc)}" style="width:24px; height:24px; border-radius:4px; object-fit:cover;" alt="">` : `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>`}
+            <span>${escapeHtml(title)}</span>
+          </a>
+        `;
+      }).join('');
+    }
+
+    // Render Forum Questions & Search Intent
+    function renderForumView(forumData) {
+      const questions = forumData.questions || [];
+      const threads = forumData.threads || [];
+      const filterPillsContainer = document.getElementById('intentFilterPills');
+      const questionsList = document.getElementById('forumQuestionsList');
+      const threadsTable = document.getElementById('forumThreadsTableBody');
+
+      // 1. Build Intent Filter Pills
+      const intents = ['all', 'pricing', 'comparison', 'setup', 'troubleshooting', 'recommendation'];
+      const intentLabels = {
+        'all': 'All Intents',
+        'pricing': 'Pricing & Cost',
+        'comparison': 'Comparison & Alternatives',
+        'setup': 'Setup & Implementation',
+        'troubleshooting': 'Troubleshooting & Bugs',
+        'recommendation': 'Recommendations'
+      };
+
+      filterPillsContainer.innerHTML = intents.map(int => `
+        <button type="button" class="domain-pill ${activeForumIntent === int ? 'active' : ''}" onclick="filterForumQuestions('${int}')">
+          ${intentLabels[int]}
+        </button>
+      `).join('');
+
+      // 2. Render Questions
+      renderFilteredQuestions(questions);
+
+      // 3. Render Scraped Threads
+      if (!threads || threads.length === 0) {
+        threadsTable.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No forum threads scraped.</td></tr>';
+      } else {
+        threadsTable.innerHTML = threads.map(t => `
+          <tr>
+            <td><span class="badge badge-blue">${escapeHtml(t.platform || 'Forum')}</span></td>
+            <td>
+              <div style="font-weight:600; color:#0F172A;">${escapeHtml(t.title || 'Discussion Thread')}</div>
+              <a href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:var(--primary); text-decoration:none; word-break:break-all;">${escapeHtml(t.url)} &rarr;</a>
+            </td>
+            <td><span class="badge badge-emerald">${t.questions_count || 0} questions</span></td>
+            <td><span class="badge badge-slate">${(t.word_count || 0).toLocaleString()} words</span></td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function filterForumQuestions(intent) {
+      activeForumIntent = intent;
+      document.querySelectorAll('#intentFilterPills .domain-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(intent) || (intent === 'all' && btn.textContent.includes('All')));
+      });
+      const questions = currentResults?.forum_insights?.questions || [];
+      renderFilteredQuestions(questions);
+    }
+
+    function renderFilteredQuestions(questions) {
+      const container = document.getElementById('forumQuestionsList');
+      const filtered = activeForumIntent === 'all' ? 
+        questions : 
+        questions.filter(q => (q.intent || '').toLowerCase() === activeForumIntent);
+
+      if (!filtered || filtered.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); padding:16px;">No questions found in this category.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(q => {
+        const intentColor = q.intent === 'pricing' ? 'badge-amber' : 
+                            q.intent === 'comparison' ? 'badge-blue' : 
+                            q.intent === 'setup' ? 'badge-emerald' : 'badge-slate';
+
+        return `
+          <div class="forum-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="badge ${intentColor}">${escapeHtml(q.intent || 'Question')}</span>
+                <span class="badge badge-slate">${escapeHtml(q.platform || 'Community')}</span>
+              </div>
+              <a href="${escapeHtml(q.source_url || '#')}" target="_blank" rel="noopener noreferrer" style="font-size:12px; color:var(--primary); text-decoration:none;">View Thread &rarr;</a>
+            </div>
+            <div style="font-size:14px; font-weight:600; color:var(--text-main); margin-bottom:4px;">
+              "${escapeHtml(q.question)}"
+            </div>
+            <div style="font-size:12px; color:var(--text-muted);">
+              Thread: ${escapeHtml(q.thread_title || 'Forum inquiry')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Comparison Studio Logic
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedDocxFile = file;
+      document.getElementById('dropZoneText').textContent = `Selected: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+    }
+
+    // Drag and Drop
+    const dropZone = document.getElementById('docxDropZone');
+    if (dropZone) {
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
+      });
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
+      });
+      dropZone.addEventListener('drop', e => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0 && files[0].name.endsWith('.docx')) {
+          selectedDocxFile = files[0];
+          document.getElementById('dropZoneText').textContent = `Selected: ${files[0].name} (${Math.round(files[0].size / 1024)} KB)`;
+        } else {
+          alert('Please drop a valid .docx file.');
+        }
+      });
+    }
+
+    async function runContentComparison() {
+      const rawText = document.getElementById('compareTextInput').value.trim();
+      if (!selectedDocxFile && !rawText) {
+        alert('Please upload a .docx Word document or paste your article text to compare.');
+        return;
+      }
+
+      const submitBtn = document.getElementById('compareSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Benchmarking Content...</span>';
+
+      try {
+        let payload = {};
+        if (selectedDocxFile) {
+          const reader = new FileReader();
+          const base64Promise = new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+          });
+          reader.readAsDataURL(selectedDocxFile);
+          const base64Data = await base64Promise;
+          payload = {
+            docx_base64: base64Data,
+            filename: selectedDocxFile.name,
+            text: rawText
+          };
+        } else {
+          payload = {
+            text: rawText,
+            filename: 'Pasted Draft Content'
+          };
+        }
+
+        const resp = await fetch('/api/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await resp.json();
+        if (!resp.ok || resData.status !== 'success') {
+          throw new Error(resData.error || 'Comparison failed');
+        }
+
+        currentComparison = resData.comparison;
+        renderComparisonResults(resData.comparison);
+
+      } catch (err) {
+        alert('Error analyzing content: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span>Analyze & Benchmark vs Competitors</span>
+        `;
+      }
+    }
+
+    function renderComparisonResults(comp) {
+      if (!comp) return;
+
+      const resultsArea = document.getElementById('compareResultsArea');
+      resultsArea.style.display = 'block';
+
+      // 1. KPIs
+      const score = Math.round(comp.optimization_score || 0);
+      const gauge = document.getElementById('compareScoreGauge');
+      gauge.style.setProperty('--score', score);
+      gauge.setAttribute('data-score', score + '%');
+
+      document.getElementById('compareWordCount').textContent = (comp.user_metrics?.word_count || 0).toLocaleString();
+      document.getElementById('compareWordDiff').textContent = `vs ${Math.round(comp.competitor_averages?.avg_word_count || 0).toLocaleString()} competitor avg`;
+
+      document.getElementById('compareFleschScore').textContent = comp.user_metrics?.flesch_reading_ease || 0;
+      document.getElementById('compareFleschLevel').textContent = comp.user_metrics?.reading_level || 'Standard';
+
+      const gaps = comp.content_gaps || [];
+      document.getElementById('compareGapsCount').textContent = gaps.length;
+
+      // 2. Chart: Side-by-Side Density Comparison
+      const kwComparisons = (comp.keyword_comparisons || []).slice(0, 12);
+      const labels = kwComparisons.map(k => k.keyword);
+      const userDensities = kwComparisons.map(k => k.user_density_pct);
+      const compDensities = kwComparisons.map(k => k.competitor_avg_density_pct);
+
+      const ctx = document.getElementById('compareDensityChart').getContext('2d');
+      if (compareChartInstance) compareChartInstance.destroy();
+
+      compareChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Your Content Density %',
+              data: userDensities,
+              backgroundColor: '#2563EB',
+              borderColor: '#1D4ED8',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              label: 'Competitor Average Density %',
+              data: compDensities,
+              backgroundColor: '#CBD5E1',
+              borderColor: '#94A3B8',
+              borderWidth: 1,
+              borderRadius: 4,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + context.parsed.y + '%';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { weight: '600' } }
+            },
+            y: {
+              grid: { color: '#E2E8F0' },
+              ticks: { callback: v => v + '%' }
+            }
+          }
+        }
+      });
+
+      // 3. Content Gaps Table
+      const gapsTable = document.getElementById('compareGapsTableBody');
+      if (gaps.length === 0) {
+        gapsTable.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--emerald); font-weight:600; padding:18px;">Outstanding! Your draft covers all dominant competitor keywords!</td></tr>';
+      } else {
+        gapsTable.innerHTML = gaps.map(g => `
+          <tr>
+            <td><strong style="color:var(--rose); font-size:13.5px;">${escapeHtml(g.keyword)}</strong></td>
+            <td><span class="badge badge-slate">${g.domain_presence} / ${comp.competitor_count} competitors</span></td>
+            <td><span class="badge badge-blue">${g.total_competitor_occurrences} hits</span></td>
+            <td><strong>${g.competitor_avg_density_pct}%</strong></td>
+            <td><span class="badge badge-rose">Add 1–${Math.max(2, Math.round(g.total_competitor_occurrences / comp.competitor_count))} times</span></td>
+          </tr>
+        `).join('');
+      }
+
+      // 4. Complete Matrix Benchmark Table
+      const matrixTable = document.getElementById('compareMatrixTableBody');
+      const allKws = comp.keyword_comparisons || [];
+      matrixTable.innerHTML = allKws.map((k, i) => {
+        let statusBadge = '<span class="badge badge-rose">Missing</span>';
+        if (k.ratio >= 0.75 && k.ratio <= 1.5) {
+          statusBadge = '<span class="badge badge-emerald">Well Optimized</span>';
+        } else if (k.ratio > 1.5) {
+          statusBadge = '<span class="badge badge-amber">Over-Optimized</span>';
+        } else if (k.ratio > 0) {
+          statusBadge = '<span class="badge badge-blue">Low Density</span>';
+        }
+
+        return `
+          <tr>
+            <td><span class="badge badge-slate">#${i + 1}</span></td>
+            <td><strong>${escapeHtml(k.keyword)}</strong></td>
+            <td><span class="badge badge-blue">${k.user_count}</span></td>
+            <td><strong>${k.user_density_pct}%</strong></td>
+            <td>${k.competitor_avg_density_pct}%</td>
+            <td><strong>${k.ratio}x</strong></td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Scroll to comparison results
+      resultsArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function copyMissingKeywords() {
+      const gaps = currentComparison?.content_gaps || [];
+      if (gaps.length === 0) {
+        alert('No missing keywords to copy!');
+        return;
+      }
+      const text = gaps.map(g => g.keyword).join(', ');
+      navigator.clipboard.writeText(text).then(() => {
+        alert(`Copied ${gaps.length} missing keywords to clipboard!`);
+      }).catch(err => {
+        prompt('Copy missing keywords:', text);
+      });
+    }
+
+    // Load History from Neon Database
+    async function loadHistory() {
+      try {
+        const resp = await fetch('/api/history');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        // 1. Searches
+        const searchesTable = document.getElementById('historySearchesTableBody');
+        const searches = data.searches || [];
+        if (searches.length === 0) {
+          searchesTable.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No saved searches in Neon DB yet.</td></tr>';
+        } else {
+          searchesTable.innerHTML = searches.map(s => `
+            <tr>
+              <td><span class="badge badge-blue">#${s.id}</span></td>
+              <td><strong>${escapeHtml(s.query)}</strong></td>
+              <td>${escapeHtml(s.country)}</td>
+              <td><span class="badge badge-slate">${s.competitors_count} sites</span></td>
+              <td><span class="badge badge-emerald">${escapeHtml(s.engine)}</span></td>
+              <td style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(s.created_at)}</td>
+              <td>
+                <button type="button" class="btn-action" style="padding:4px 10px; font-size:11px;" onclick="loadSavedAnalysis(${s.id})">
+                  Load Analysis &rarr;
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        }
+
+        // 2. Comparisons
+        const compTable = document.getElementById('historyComparisonsTableBody');
+        const comps = data.comparisons || [];
+        if (comps.length === 0) {
+          compTable.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No saved content comparisons in Neon DB yet.</td></tr>';
+        } else {
+          compTable.innerHTML = comps.map(c => `
+            <tr>
+              <td><span class="badge badge-blue">#${c.id}</span></td>
+              <td><strong>${escapeHtml(c.title)}</strong></td>
+              <td><span class="badge badge-slate">${escapeHtml(c.source_type)}</span></td>
+              <td>${c.word_count.toLocaleString()} words</td>
+              <td><span class="badge badge-emerald">${Math.round(c.optimization_score)}%</span></td>
+              <td><span class="badge badge-rose">${c.missing_keywords_count} gaps</span></td>
+              <td style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(c.created_at)}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        console.error('History load error:', e);
+      }
+    }
+
+    async function loadSavedAnalysis(id) {
+      try {
+        const resp = await fetch(`/api/history/load?id=${id}`);
+        if (!resp.ok) throw new Error('Could not load analysis record');
+        const data = await resp.json();
+        currentResults = data;
+        renderDashboard(data);
+        switchTab('dominanceTab', document.querySelector('.tab-btn'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        alert('Error loading saved analysis: ' + err.message);
+      }
     }
 
     function renderSuggestionsView(suggs) {

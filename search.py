@@ -36,6 +36,9 @@ import suggestions
 import crawler
 import keyword_matrix
 import dashboard_renderer
+import chrome_session
+import forum_analyzer
+import db
 
 
 # ----------------------------------------------------------------------------
@@ -245,6 +248,122 @@ def _snippet_for(anchor, title, max_len=320):
 
 
 # ----------------------------------------------------------------------------
+# People Also Search For & Google Image Refinements
+# ----------------------------------------------------------------------------
+def extract_people_also_search_for(html="", serper_data=None, soup=None):
+    """Extract Google 'People Also Search For' and related queries matching user snippet & Google selectors."""
+    items = []
+    seen = set()
+
+    # 1. From Serper API data
+    if serper_data and isinstance(serper_data, dict):
+        for rs in serper_data.get("relatedSearches", []):
+            q = (rs.get("query") or "").strip()
+            if q and q.lower() not in seen:
+                seen.add(q.lower())
+                items.append({
+                    "title": q,
+                    "query": q,
+                    "url": f"https://www.google.com/search?q={quote_plus(q)}"
+                })
+        for pa in serper_data.get("peopleAlsoAsk", []):
+            q = (pa.get("question") or "").strip()
+            if q and q.lower() not in seen:
+                seen.add(q.lower())
+                items.append({
+                    "title": q,
+                    "query": q,
+                    "url": pa.get("link", f"https://www.google.com/search?q={quote_plus(q)}")
+                })
+
+    # 2. From Google SERP HTML using user's selectors and general Google selectors
+    if html and not soup:
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+        except Exception:
+            soup = None
+
+    if soup:
+        selectors = [
+            "div.y6Uyqe a", "div.b2Rnsc a", "a.ngTNl", "div.AJLUJb a",
+            "span.dg6jd", "div.oatEtb", "div.EIaa9b a", "div.s75CSd", "div.K32Tfe",
+            ".b_rs ul li a", "ul.b_vList li a"
+        ]
+        for sel in selectors:
+            for el in soup.select(sel):
+                a = el if el.name == "a" else el.find_parent("a")
+                t = el.get_text(" ", strip=True)
+                href = a.get("href", "") if a else ""
+                cleaned = " ".join(t.split())
+                if cleaned and len(cleaned) < 80 and cleaned.lower() not in seen:
+                    seen.add(cleaned.lower())
+                    items.append({
+                        "title": cleaned,
+                        "query": cleaned,
+                        "url": href
+                    })
+
+
+    return items
+
+
+def extract_image_refinements(query, country=DEFAULT_COUNTRY, proxy=None, serper_key=""):
+    """Extract category refinement topics/chips from Google Image search mode top bar."""
+    chips = []
+    seen = set()
+
+    # 1. Try Google Image search page directly
+    try:
+        url = f"https://www.google.com/search?q={quote_plus(query)}&tbm=isch&gl=us&hl=en"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        text = chrome_session.fetch_with_cffi(url, headers=headers, proxy=proxy)
+        if not text:
+            r = requests.get(url, headers=headers, proxies=analyzer._proxies(proxy), timeout=10)
+            text = r.text if r.status_code == 200 else ""
+        if text:
+            soup = BeautifulSoup(text, "html.parser")
+            selectors = [
+                "div.IUOThf [role='listitem']", "div.TrmO7 [role='listitem']",
+                "a.nPDzT", "div.GKS7s", "span.FMKtTb"
+            ]
+            for sel in selectors:
+                for el in soup.select(sel):
+                    a = el if el.name == "a" else el.find("a")
+                    span = el.select_one("span.FMKtTb") or (el if el.name == "span" and "FMKtTb" in el.get("class", []) else None)
+                    t = span.get_text(" ", strip=True) if span else el.get_text(" ", strip=True)
+                    href = a.get("href", "") if a else ""
+                    cleaned = " ".join(t.split())
+                    if cleaned and len(cleaned) < 35 and cleaned.lower() not in seen:
+                        seen.add(cleaned.lower())
+                        chips.append({"title": cleaned, "url": href})
+    except Exception:
+        pass
+
+    # 2. Bing Images expansion fallback if Google chips blocked
+    if not chips:
+        try:
+            b_url = f"https://www.bing.com/images/search?q={quote_plus(query)}"
+            headers = {"User-Agent": _UA, "Accept-Language": "en-US,en;q=0.9"}
+            r = requests.get(b_url, headers=headers, proxies=analyzer._proxies(proxy), timeout=10)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, "html.parser")
+                for a in soup.select(".inline_search_expansion li a, .df_c, a.suggestion"):
+                    t = a.get_text(" ", strip=True)
+                    cleaned = " ".join(t.split())
+                    if cleaned and len(cleaned) < 30 and cleaned.lower() not in seen:
+                        seen.add(cleaned.lower())
+                        chips.append({"title": cleaned, "url": a.get("href", "")})
+        except Exception:
+            pass
+
+    return chips[:35]
+
+
+# ----------------------------------------------------------------------------
 # The search call
 # ----------------------------------------------------------------------------
 def google_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=25):
@@ -257,8 +376,6 @@ def google_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=25
         raise ValueError("Empty search query.")
     loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
 
-    # Ask for a few extra so that after we drop ads / non-result anchors we
-    # still have `num` clean organic results.
     ask = min(max(num + 5, 10), 50)
     params = "q=%s&num=%d&gl=%s&hl=%s&pws=0&safe=off" % (
         quote_plus(query), ask, loc["gl"], loc["hl"])
@@ -270,8 +387,6 @@ def google_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=25
         "Accept-Language": loc["accept"],
         "Referer": "https://%s/" % loc["domain"],
     }
-    # CONSENT / SOCS cookies skip the EU "before you continue" interstitial that
-    # otherwise replaces the results page with a consent form.
     cookies = {"CONSENT": "YES+cb", "SOCS": "CAI"}
 
     try:
@@ -295,6 +410,7 @@ def google_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=25
     html = resp.text
 
     results = _parse_results(html, loc["domain"], num)
+    pasf = extract_people_also_search_for(html=html)
     if not results:
         if _looks_blocked(html):
             raise RuntimeError(
@@ -303,7 +419,18 @@ def google_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=25
         raise RuntimeError(
             "No organic results were parsed. Either the query genuinely has none, "
             "or Google changed its result markup. (Country: %s)" % country)
-    return results
+    return results, pasf
+
+
+def google_chrome_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None):
+    """Query Google using real Chrome browser session (bypasses bot wall / solves captcha)."""
+    loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
+    html, final_url, is_captcha = chrome_session.fetch_google_with_chrome(query, loc, proxy=proxy)
+    if is_captcha or not html:
+        return None, []
+    results = _parse_results(html, loc["domain"], num)
+    pasf = extract_people_also_search_for(html=html)
+    return results, pasf
 
 
 def serper_search(query, country=DEFAULT_COUNTRY, num=10, api_key="", timeout=30):
@@ -336,7 +463,8 @@ def serper_search(query, country=DEFAULT_COUNTRY, num=10, api_key="", timeout=30
             msg = r.text
         raise RuntimeError("Serper API error %d: %s" % (r.status_code, msg))
 
-    organic = r.json().get("organic", []) or []
+    data = r.json()
+    organic = data.get("organic", []) or []
     results = []
     for item in organic:
         link = (item.get("link") or "").strip()
@@ -353,7 +481,8 @@ def serper_search(query, country=DEFAULT_COUNTRY, num=10, api_key="", timeout=30
             break
     if not results:
         raise RuntimeError("Serper returned no organic results for this query.")
-    return results
+    pasf = extract_people_also_search_for(serper_data=data)
+    return results, pasf
 
 
 def _decode_bing_url(u):
@@ -380,6 +509,7 @@ def bing_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=15):
     loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
     results = []
     seen = set()
+    first_soup = None
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": loc["accept"],
@@ -394,6 +524,8 @@ def bing_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=15):
             if r.status_code != 200:
                 break
             soup = BeautifulSoup(r.text, "html.parser")
+            if not first_soup:
+                first_soup = soup
             items = soup.select("li.b_algo")
             if not items:
                 break
@@ -422,7 +554,8 @@ def bing_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=15):
                     break
         except Exception:
             break
-    return results
+    pasf = extract_people_also_search_for(soup=first_soup) if first_soup else []
+    return results, pasf
 
 
 def duckduckgo_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeout=15):
@@ -478,35 +611,47 @@ def duckduckgo_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, timeou
 def unified_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, serper_key="", progress=None):
     """Resilient search engine that makes SERP API keys 100% OPTIONAL:
     - If `serper_key` is provided -> Uses Serper Google API.
-    - If no `serper_key` (or if Serper key is invalid/expired) -> Seamlessly falls back
-      to direct web search (Google Direct -> Bing -> DuckDuckGo).
+    - If Chrome session available -> Attempts genuine Chrome session.
+    - If direct Google gets blocked -> Seamlessly falls back to Bing & DuckDuckGo.
     - NEVER crashes on CAPTCHA or missing keys.
-    Returns (results, engine_name).
+    Returns (results, engine_name, people_also_search).
     """
     log = progress if callable(progress) else (lambda m: None)
     serper_key = (serper_key or "").strip()
+    pasf = []
 
+    # 1. Serper.dev Google API (Official JSON, no CAPTCHA possible)
     if serper_key:
         log("Searching Google via Serper API (%s, top %d results)..." % (country, num))
         try:
-            results = serper_search(query, country=country, num=num, api_key=serper_key)
+            results, pasf = serper_search(query, country=country, num=num, api_key=serper_key)
             if results:
-                return results, "serper"
+                return results, "serper", pasf
         except Exception as e:
-            log("Serper API error: %s. Falling back to free search..." % e)
+            log("Serper API error: %s. Falling back to Chrome session / free search..." % e)
 
-    # Free fallback path
+    # 2. Chrome Browser Session Mode (Real Chrome on machine with persistent profile & proxy support)
+    try:
+        log("Attempting genuine Chrome browser session (%s)..." % country)
+        results, pasf = google_chrome_search(query, country=country, num=num, proxy=proxy)
+        if results and len(results) >= 3:
+            log("Successfully retrieved %d results via Chrome Browser Session." % len(results))
+            return results, "chrome-session", pasf
+    except Exception as e:
+        log("Chrome session search deferred (%s). Switching to Direct Google / Bing..." % e)
+
+    # 3. Direct Google search
     log("Attempting direct Google search (%s)..." % country)
     try:
-        results = google_search(query, country=country, num=num, proxy=proxy)
+        results, pasf = google_search(query, country=country, num=num, proxy=proxy)
         if results:
-            return results, "google-direct"
+            return results, "google-direct", pasf
     except Exception as e:
         log("Google Direct blocked or CAPTCHA required (%s). Switching to free fallback search (Bing / DuckDuckGo)..." % e)
 
-    # Bing fallback
+    # 4. Bing fallback
     log("Querying Bing organic search (free, zero keys required)...")
-    results = bing_search(query, country=country, num=num, proxy=proxy)
+    results, pasf = bing_search(query, country=country, num=num, proxy=proxy)
     if len(results) < num:
         log("Merging additional organic results from DuckDuckGo...")
         ddg_results = duckduckgo_search(query, country=country, num=num - len(results), proxy=proxy)
@@ -522,7 +667,7 @@ def unified_search(query, country=DEFAULT_COUNTRY, num=10, proxy=None, serper_ke
 
     if results:
         log("Retrieved %d organic results via free search engine." % len(results))
-        return results, "free-web-engine"
+        return results, "free-web-engine", pasf
 
     raise RuntimeError("Could not retrieve search results. Please check your internet connection or proxy.")
 
@@ -771,12 +916,12 @@ def search_and_analyze(query, country=DEFAULT_COUNTRY, num_results=10, deep_n=0,
 
 
 def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
-                          pages_per_site=25, max_competitors=5,
+                          pages_per_site=1, max_competitors=5,
                           proxy=None, serper_key="", progress=None,
                           custom_stopwords=None, ngram_filter="all", max_workers=8):
-    """Run Google search, filter clean sites, deep-crawl 20-40 pages per competitor,
-    extract per-website Top 20 keywords, compute inter-site comparison matrix,
-    and generate interactive dashboard charts.
+    """Run search, extract SERP, Google People Also Search For, Image refinement topics,
+    Forum discussions & questions, scrape competitor landing pages (headers/footers stripped),
+    build inter-site dominance matrix, and persist to Neon PostgreSQL database.
     """
     log = progress if callable(progress) else (lambda m: None)
     loc = COUNTRIES.get(country) or COUNTRIES[DEFAULT_COUNTRY]
@@ -787,12 +932,25 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
     suggs = suggestions.get_google_suggestions(query, country=country, proxy=proxy)
     log("Found %d Google search suggestions." % len(suggs))
 
-    # 2. SERP Query
-    num_results = max(10, min(int(num_results or 10), 30))
-    results, engine = unified_search(query, country=country, num=num_results,
-                                     proxy=proxy, serper_key=serper_key, progress=log)
+    # 2. SERP Query & People Also Search For
+    max_competitors = max(1, min(int(max_competitors or 5), 50))
+    ask_results = max(num_results or 10, max_competitors * 2)
+    results, engine, pasf = unified_search(query, country=country, num=ask_results,
+                                           proxy=proxy, serper_key=serper_key, progress=log)
+    log("Extracted %d 'People Also Search For' queries." % len(pasf))
 
-    # 3. Filter genuine competitor websites (exclude Reddit, Quora, ads, social platforms)
+    # 3. Google Image Search Category Refinement Chips/Topics
+    log("Scraping Google Image search refinement categories & topics...")
+    img_chips = extract_image_refinements(query, country=country, proxy=proxy, serper_key=serper_key)
+    log("Found %d image refinement categories." % len(img_chips))
+
+    # 4. Forum & Community Discussion Questions Analysis
+    log("Analyzing top forum & community discussions (Reddit / Quora / Forums)...")
+    forum_insights = forum_analyzer.analyze_forum_discussions(
+        query, country=country, top_n=15, proxy=proxy, serper_key=serper_key, progress=log
+    )
+
+    # 5. Filter genuine competitor websites (exclude Reddit, Quora, ads, social platforms)
     seen_domains = set()
     competitor_targets = []
     skipped_count = 0
@@ -809,15 +967,18 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
 
     if skipped_count > 0:
         log("Filtered out %d non-competitor / forum / ad links." % skipped_count)
-    log("Identified %d clean competitor websites to deep-crawl." % len(competitor_targets))
+    log("Identified %d clean competitor websites to scrape." % len(competitor_targets))
 
-    # 4. Deep crawl each competitor site (20 to 40 pages per domain)
-    pages_per_site = max(5, min(int(pages_per_site or 25), 60))
+    # 6. Scrape competitor sites (single landing page only if pages_per_site == 1)
+    pages_per_site = max(1, min(int(pages_per_site or 1), 60))
     competitors_data = []
 
     for idx, target in enumerate(competitor_targets, start=1):
         dom = target["domain"]
-        log("[%d/%d] Deep-crawling %s (up to %d pages)..." % (idx, len(competitor_targets), dom, pages_per_site))
+        if pages_per_site == 1:
+            log("[%d/%d] Scraping landing page only for %s (no headers/footers)..." % (idx, len(competitor_targets), dom))
+        else:
+            log("[%d/%d] Crawling %s (up to %d pages)..." % (idx, len(competitor_targets), dom, pages_per_site))
         try:
             site_data = crawler.crawl_site(
                 start_url=target["url"],
@@ -838,7 +999,7 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
                 "combined_text": ""
             })
 
-    # 5. Build Keyword Matrix (Top 20 per site + Inter-site comparison)
+    # 7. Build Keyword Matrix (Top 20 per site + Inter-site comparison)
     log("Synthesizing Top 20 keywords per site and inter-site comparison matrix...")
     matrix = keyword_matrix.build_inter_site_matrix(
         competitors_data, top_n_cross=30, custom_stopwords=custom_stopwords, ngram_filter=ngram_filter
@@ -855,7 +1016,7 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
         cross_terms.append(t_copy)
     matrix["cross_site_terms"] = cross_terms
 
-    # 6. Render Interactive Visual Dashboard
+    # 8. Render Interactive Visual Dashboard
     log("Generating interactive visual charts dashboard...")
     dashboard_payload = {
         "query": query,
@@ -874,9 +1035,9 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
         domain_counts[d] = domain_counts.get(d, 0) + 1
     top_domains = sorted(domain_counts.items(), key=lambda kv: (-kv[1], kv[0]))
 
-    log("Completed deep analysis across %d competitor websites." % len(competitors_data))
+    log("Completed analysis across %d competitor websites." % len(competitors_data))
 
-    return {
+    result_payload = {
         "mode": "deep_crawl",
         "engine": engine,
         "query": query,
@@ -890,6 +1051,9 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
         "unique_domains": len(domain_counts),
         "top_domains": [{"domain": d, "count": c} for d, c in top_domains],
         "suggestions": suggs,
+        "people_also_search": pasf,
+        "image_refinements": img_chips,
+        "forum_insights": forum_insights,
         "competitors_crawled": len(competitors_data),
         "pages_per_site": pages_per_site,
         "competitors_data": competitors_data,
@@ -897,6 +1061,17 @@ def search_and_deep_crawl(query, country=DEFAULT_COUNTRY, num_results=10,
         "dashboard_html": dashboard_html,
         "results": results,
     }
+
+    # 9. Save to Neon PostgreSQL database
+    try:
+        db_id = db.save_analysis(result_payload)
+        result_payload["db_id"] = db_id
+        if db_id:
+            log("Analysis successfully saved to Neon PostgreSQL database (ID: #%d)." % db_id)
+    except Exception as e:
+        log("Database notification: %s" % e)
+
+    return result_payload
 
 
 # ----------------------------------------------------------------------------

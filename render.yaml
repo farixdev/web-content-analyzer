@@ -8,3 +8,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.8
+      - key: DATABASE_URL
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
+

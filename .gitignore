@@ -21,9 +21,14 @@ dashboard.html
 # Local secrets / env
 .env
 *.local
+data/
+build/
+dist/
+*.spec
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+
